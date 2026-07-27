@@ -1,0 +1,13 @@
+jupyterlab
+notebook
+ipywidgets
+sympy
+numpy
+scipy
+pandas
+matplotlib
+seaborn
+plotly
+ruff
+pytest
+pytest-cov
