@@ -35,8 +35,10 @@ Os módulos 12 a 14 são opcionais, voltados a quem quer seguir para Engenharia 
 
 ### 01 — Conjuntos e Funções
 
-- **[01_nocoes_de_logica.ipynb](01_conjuntos_e_funcoes/01_nocoes_de_logica.ipynb)** — noções de lógica proposicional: proposições, sentenças abertas e quantificadores (∀, ∃), negação, conectivos (conjunção e disjunção), condicionais e bicondicionais, construção automática de tabelas-verdade, classificação em tautologia/contradição/contingência, implicação e equivalência lógica, recíproca/contrária/contrapositiva e as Leis de De Morgan. Traz representações algébricas, gráficas (paleta Nord) e numéricas, além de widgets interativos para testar quantificadores e montar proposições compostas.
-- **[01_nocoes_de_logica_gabarito.ipynb](01_conjuntos_e_funcoes/01_nocoes_de_logica_gabarito.ipynb)** — gabarito comentado dos exercícios.
+- **[011a_nocoes_de_logica.ipynb](01_conjuntos_e_funcoes/011a_nocoes_de_logica.ipynb)** — noções de lógica proposicional: proposições, sentenças abertas e quantificadores (∀, ∃), negação, conectivos (conjunção e disjunção), condicionais e bicondicionais, construção automática de tabelas-verdade, classificação em tautologia/contradição/contingência, implicação e equivalência lógica, recíproca/contrária/contrapositiva e as Leis de De Morgan. Traz representações algébricas, gráficas (paleta Nord) e numéricas, além de widgets interativos para testar quantificadores e montar proposições compostas.
+- **[011b_nocoes_de_logica_gabarito.ipynb](01_conjuntos_e_funcoes/011b_nocoes_de_logica_gabarito.ipynb)** — gabarito comentado dos exercícios.
+- **[012a_conjuntos.ipynb](01_conjuntos_e_funcoes/012a_conjuntos.ipynb)** — teoria de conjuntos: pertinência, descrição por extensão/compreensão, conjunto unitário/vazio/universo, igualdade, subconjuntos, conjunto das partes, união, interseção, diferença, complementar, propriedades (comutativa, associativa, distributiva) e Leis de De Morgan aplicadas a conjuntos. Traz um diagrama de Venn interativo reutilizado em vários blocos (paleta Nord) e um problema de contagem com união (n(A∪B) = n(A) + n(B) − n(A∩B)).
+- **[012b_conjuntos_gabarito.ipynb](01_conjuntos_e_funcoes/012b_conjuntos_gabarito.ipynb)** — gabarito comentado dos exercícios.
 
 ## Como rodar localmente
 
