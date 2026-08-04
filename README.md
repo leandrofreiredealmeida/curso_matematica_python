@@ -39,6 +39,8 @@ Os módulos 12 a 14 são opcionais, voltados a quem quer seguir para Engenharia 
 - **[011b_nocoes_de_logica_gabarito.ipynb](01_conjuntos_e_funcoes/011b_nocoes_de_logica_gabarito.ipynb)** — gabarito comentado dos exercícios.
 - **[012a_conjuntos.ipynb](01_conjuntos_e_funcoes/012a_conjuntos.ipynb)** — teoria de conjuntos: pertinência, descrição por extensão/compreensão, conjunto unitário/vazio/universo, igualdade, subconjuntos, conjunto das partes, união, interseção, diferença, complementar, propriedades (comutativa, associativa, distributiva) e Leis de De Morgan aplicadas a conjuntos. Traz um diagrama de Venn interativo reutilizado em vários blocos (paleta Nord) e um problema de contagem com união (n(A∪B) = n(A) + n(B) − n(A∩B)).
 - **[012b_conjuntos_gabarito.ipynb](01_conjuntos_e_funcoes/012b_conjuntos_gabarito.ipynb)** — gabarito comentado dos exercícios.
+- **[013a_conjuntos_numericos.ipynb](01_conjuntos_e_funcoes/013a_conjuntos_numericos.ipynb)** — conjuntos numéricos N, Z, Q, R e C, motivados por uma equação que trava em cada conjunto sucessivo; princípio da indução finita (base e passo indutivo); dízimas periódicas e expansão decimal por divisão longa; prova por contradição de que √2 é irracional; módulo (valor absoluto) como distância na reta; e notação de intervalos (aberto, fechado, semiaberto, infinito). Traz uma reta numérica interativa reutilizada em vários blocos (paleta Nord) e widgets para explorar frações, módulo e intervalos.
+- **[013b_conjuntos_numericos_gabarito.ipynb](01_conjuntos_e_funcoes/013b_conjuntos_numericos_gabarito.ipynb)** — gabarito comentado dos exercícios.
 
 ## Como rodar localmente
 
