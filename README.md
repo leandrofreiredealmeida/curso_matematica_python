@@ -41,6 +41,8 @@ Os módulos 12 a 14 são opcionais, voltados a quem quer seguir para Engenharia 
 - **[012b_conjuntos_gabarito.ipynb](01_conjuntos_e_funcoes/012b_conjuntos_gabarito.ipynb)** — gabarito comentado dos exercícios.
 - **[013a_conjuntos_numericos.ipynb](01_conjuntos_e_funcoes/013a_conjuntos_numericos.ipynb)** — conjuntos numéricos N, Z, Q, R e C, motivados por uma equação que trava em cada conjunto sucessivo; princípio da indução finita (base e passo indutivo); dízimas periódicas e expansão decimal por divisão longa; prova por contradição de que √2 é irracional; módulo (valor absoluto) como distância na reta; e notação de intervalos (aberto, fechado, semiaberto, infinito). Traz uma reta numérica interativa reutilizada em vários blocos (paleta Nord) e widgets para explorar frações, módulo e intervalos.
 - **[013b_conjuntos_numericos_gabarito.ipynb](01_conjuntos_e_funcoes/013b_conjuntos_numericos_gabarito.ipynb)** — gabarito comentado dos exercícios.
+- **[014a_relacoes.ipynb](01_conjuntos_e_funcoes/014a_relacoes.ipynb)** — par ordenado e sua propriedade de igualdade; sistema cartesiano ortogonal e quadrantes; produto cartesiano (A × B) e cardinalidade; relação binária como subconjunto de A × B, com suas cinco formas de representação (sentença, pares, tabela, gráfico, diagrama de flechas); domínio, contradomínio e imagem; relação inversa; e relação em A com as propriedades reflexiva, simétrica, transitiva e antissimétrica. Traz diagrama de flechas (sagital) e matriz de relação interativos (paleta Nord), além de widgets para montar relações escolhendo os pares.
+- **[014b_relacoes_gabarito.ipynb](01_conjuntos_e_funcoes/014b_relacoes_gabarito.ipynb)** — gabarito comentado dos exercícios.
 
 ## Como rodar localmente
 
