@@ -9,7 +9,7 @@ A ordem das pastas é a ordem sugerida de estudo:
 | Módulo | Status |
 |---|---|
 | `00_fundamentos_e_python` | ✅ em andamento |
-| `01_conjuntos_e_funcoes` | ✅ em andamento |
+| `01_conjuntos_e_funcoes` | ✅ completo |
 | `02_logaritmos` | ⏳ não iniciado |
 | `03_progressoes_matrizes_e_sistemas_lineares` | ⏳ não iniciado |
 | `04_geometria_plana` | ⏳ não iniciado |
@@ -57,6 +57,8 @@ Os módulos 12 a 14 são opcionais, voltados a quem quer seguir para Engenharia 
 - **[0110b_funcao_modular_gabarito.ipynb](01_conjuntos_e_funcoes/0110b_funcao_modular_gabarito.ipynb)** — gabarito comentado dos exercícios.
 - **[0111a_outras_funcoes_elementares.ipynb](01_conjuntos_e_funcoes/0111a_outras_funcoes_elementares.ipynb)** — panorama enxuto de sete funções "esquecidas": cúbica f(x)=x³ (ímpar, sempre crescente, com a curiosidade da duplicação do cubo); raiz quadrada (domínio x≥0, crescimento desacelerado); raiz cúbica (domínio ℝ, espelho de x³); recíproca f(x)=1/x (assíntotas em x=0 e y=0, hipérbole equilátera); função sinal sgn(x) (primeira função descontínua do curso, com bolinhas abertas/fechadas); função máximo inteiro ⌊x⌋ (gráfico em escada, notação de Gauss); e parte fracionária {x} (gráfico em dente de serra, antecipando periodicidade). Cada função traz definição, gráfico com múltiplas representações, curiosidade histórica ou erro comum, e aplicação prática (volume e escala, queda livre, Lei de Boyle, controle liga/desliga, estacionamento por hora etc.). Traz um widget interativo de slider logarítmico mostrando 1/x "explodir" perto da assíntota vertical. Usa como fio condutor uma galeria de quatro gráficos sem rótulo no gancho, revelados e reunidos numa galeria final com as sete curvas lado a lado.
 - **[0111b_outras_funcoes_elementares_gabarito.ipynb](01_conjuntos_e_funcoes/0111b_outras_funcoes_elementares_gabarito.ipynb)** — gabarito comentado dos exercícios.
+- **[0112a_transformacoes_composta_e_inversa.ipynb](01_conjuntos_e_funcoes/0112a_transformacoes_composta_e_inversa.ipynb)** — último notebook do módulo. Transformações de gráficos (translação vertical/horizontal, reflexão em Ox/Oy, dilatação/contração vertical) usando f(x)=sen(x) como função-base; função composta aplicada a uma cadeia real de três funções (converter dólar→real, aplicar imposto, aplicar cupom de desconto fixo), mostrando que a ordem de composição importa quando o desconto é um valor fixo; e função inversa, incluindo a regra de que a inversa de uma composta inverte a ordem das funções, usada para desfazer a cadeia e recuperar o preço original em dólar. Retoma raiz quadrada e raiz cúbica como inversas de x² (restrita a x≥0) e x³, prometido no notebook anterior. Traz dois widgets interativos (sliders combinando as quatro transformações de gráfico; toggle mostrando f, f⁻¹ e a reta y=x) e uma aplicação de cifra de César como criptografia simples. Usa como fio condutor a compra de um jogo importado (dólar → real → imposto → desconto) do início ao fim do notebook.
+- **[0112b_transformacoes_composta_e_inversa_gabarito.ipynb](01_conjuntos_e_funcoes/0112b_transformacoes_composta_e_inversa_gabarito.ipynb)** — gabarito comentado dos exercícios.
 
 ## Como rodar localmente
 
