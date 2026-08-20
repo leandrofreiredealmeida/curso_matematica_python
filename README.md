@@ -10,7 +10,7 @@ A ordem das pastas é a ordem sugerida de estudo:
 |---|---|
 | `00_fundamentos_e_python` | ✅ em andamento |
 | `01_conjuntos_e_funcoes` | ✅ completo |
-| `02_logaritmos` | ⏳ não iniciado |
+| `02_logaritmos` | ✅ em andamento |
 | `03_progressoes_matrizes_e_sistemas_lineares` | ⏳ não iniciado |
 | `04_geometria_plana` | ⏳ não iniciado |
 | `05_trigonometria` | ⏳ não iniciado |
@@ -59,6 +59,11 @@ Os módulos 12 a 14 são opcionais, voltados a quem quer seguir para Engenharia 
 - **[0111b_outras_funcoes_elementares_gabarito.ipynb](01_conjuntos_e_funcoes/0111b_outras_funcoes_elementares_gabarito.ipynb)** — gabarito comentado dos exercícios.
 - **[0112a_transformacoes_composta_e_inversa.ipynb](01_conjuntos_e_funcoes/0112a_transformacoes_composta_e_inversa.ipynb)** — último notebook do módulo. Transformações de gráficos (translação vertical/horizontal, reflexão em Ox/Oy, dilatação/contração vertical) usando f(x)=sen(x) como função-base; função composta aplicada a uma cadeia real de três funções (converter dólar→real, aplicar imposto, aplicar cupom de desconto fixo), mostrando que a ordem de composição importa quando o desconto é um valor fixo; e função inversa, incluindo a regra de que a inversa de uma composta inverte a ordem das funções, usada para desfazer a cadeia e recuperar o preço original em dólar. Retoma raiz quadrada e raiz cúbica como inversas de x² (restrita a x≥0) e x³, prometido no notebook anterior. Traz dois widgets interativos (sliders combinando as quatro transformações de gráfico; toggle mostrando f, f⁻¹ e a reta y=x) e uma aplicação de cifra de César como criptografia simples. Usa como fio condutor a compra de um jogo importado (dólar → real → imposto → desconto) do início ao fim do notebook.
 - **[0112b_transformacoes_composta_e_inversa_gabarito.ipynb](01_conjuntos_e_funcoes/0112b_transformacoes_composta_e_inversa_gabarito.ipynb)** — gabarito comentado dos exercícios.
+
+### 02 — Logaritmos
+
+- **[0201a_potencias_e_raizes.ipynb](02_logaritmos/0201a_potencias_e_raizes.ipynb)** — primeiro notebook do módulo. Potência de expoente natural e suas propriedades operatórias (produto, quociente, potência de potência, distributivas); potência de expoente inteiro negativo; raiz enésima aritmética e sua condição de existência em ℝ (índice par exige radicando ≥ 0); propriedades dos radicais, simplificação por fatoração e racionalização de denominadores (incluindo caso com conjugado); potência de expoente racional (a^(m/n) = ⁿ√aᵐ, para a>0); restrição da base a valores positivos ao trabalhar com expoente racional, e o porquê de simplificar a fração do expoente sem cuidado gerar inconsistência com base negativa; ideia intuitiva de potência de expoente irracional via aproximação por racionais; e síntese final unificando tudo em aˣ definida para todo x real (a>0), preparando o terreno para a função exponencial. Traz a lenda do tabuleiro de xadrez de Sessa ibn Daher como fio condutor, seis widgets interativos (expoente negativo, existência de raiz enésima, expoente racional, restrição de base negativa, convergência de expoente irracional, e prévia de aˣ para x real) e as novas seções de aplicação prática e leitura complementar por bloco.
+- **[0201b_potencias_e_raizes_gabarito.ipynb](02_logaritmos/0201b_potencias_e_raizes_gabarito.ipynb)** — gabarito comentado dos exercícios.
 
 ## Como rodar localmente
 
