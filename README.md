@@ -13,7 +13,7 @@ A ordem das pastas é a ordem sugerida de estudo:
 | `02_logaritmos` | ✅ completo |
 | `03_progressoes_matrizes_e_sistemas_lineares` | ⏳ não iniciado |
 | `04_geometria_plana` | ⏳ não iniciado |
-| `05_trigonometria` | ⏳ não iniciado |
+| `05_trigonometria` | ✅ em andamento |
 | `06_geometria_espacial` | ⏳ não iniciado |
 | `07_geometria_analitica_plana_e_espacial` | ⏳ não iniciado |
 | `08_analise_combinatoria_e_probabilidade` | ⏳ não iniciado |
@@ -76,6 +76,11 @@ Os módulos 12 a 14 são opcionais, voltados a quem quer seguir para Engenharia 
 - **[0206b_inequacoes_exponenciais_e_logaritmicas_gabarito.ipynb](02_logaritmos/0206b_inequacoes_exponenciais_e_logaritmicas_gabarito.ipynb)** — gabarito comentado dos exercícios.
 - **[0207a_logaritmos_decimais.ipynb](02_logaritmos/0207a_logaritmos_decimais.ipynb)** — sétimo e último notebook do módulo, respondendo à pergunta deixada no fim do notebook anterior: como se calculava logaritmo antes das calculadoras. Por que a base 10 foi escolhida para as tábuas de cálculo (log(10ⁿ)=n); contexto histórico de Napier e Briggs (1614, 1624); decomposição do logaritmo decimal em característica (parte inteira) e mantissa (parte decimal), com a regra prática para determinar a característica só pela posição da vírgula; como as tábuas eram organizadas (linhas para os dois primeiros algarismos, colunas para o terceiro) e como consultá-las; o processo completo — característica + mantissa tabelada — e seu caminho inverso, o antilogaritmo; interpolação linear para números não tabelados exatamente; e comparação final entre o método da tábua e o cálculo direto com `math.log10`, fechando com uma curiosidade sobre a régua de cálculo. Traz uma linha do tempo histórica, uma tábua de logaritmos simplificada gerada em Python e cinco widgets interativos (decomposição em característica/mantissa, cálculo da característica passo a passo, destaque na tábua, simulador de consulta à tábua, interpolação linear visual e comparação tábua × Python) e fecha o módulo 02 relembrando toda a jornada, de potências e raízes até aqui.
 - **[0207b_logaritmos_decimais_gabarito.ipynb](02_logaritmos/0207b_logaritmos_decimais_gabarito.ipynb)** — gabarito comentado dos exercícios.
+
+### 05 — Trigonometria
+
+- **[0501a_arcos_e_angulos.ipynb](05_trigonometria/0501a_arcos_e_angulos.ipynb)** — primeiro notebook do módulo. Arco de circunferência (e sua diferença para a corda); o grau como unidade de medida (1°=1/360 da circunferência); o radiano deduzido a partir da própria definição de arco de comprimento igual ao raio (π rad = 180°) e as fórmulas de conversão nos dois sentidos; comprimento de arco (s=r·θ, com θ em radianos); ângulo como reunião de duas semirretas de mesma origem, com sua medida ligada de volta à razão arco/raio; classificação de ângulos (agudo, reto, obtuso, raso, de uma volta); o ciclo trigonométrico (circunferência de raio 1, x²+y²=1, origem dos arcos em (1,0), sentido positivo anti-horário); localização de arcos por quadrante (I a IV), tratando ângulos negativos e maiores que 360°; e arcos côngruos (coterminais), com a expressão geral α+k·360°. Traz quatro widgets interativos (conversão grau/radiano com ponto na circunferência, comprimento de arco com sliders de raio e ângulo, ponto se movendo ao longo do ciclo trigonométrico, e arco côngruo marcado por slider de k) e usa como fio condutor uma roda-gigante de 15 metros de raio, resolvida por completo no bloco de comprimento de arco.
+- **[0501b_arcos_e_angulos_gabarito.ipynb](05_trigonometria/0501b_arcos_e_angulos_gabarito.ipynb)** — gabarito comentado dos exercícios.
 
 ## Como rodar localmente
 
