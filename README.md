@@ -11,7 +11,7 @@ A ordem das pastas é a ordem sugerida de estudo:
 | `00_fundamentos_e_python` | ✅ em andamento |
 | `01_conjuntos_e_funcoes` | ✅ completo |
 | `02_logaritmos` | ✅ completo |
-| `03_progressoes_matrizes_e_sistemas_lineares` | ⏳ não iniciado |
+| `03_progressoes_matrizes_e_sistemas_lineares` | ✅ em andamento |
 | `04_geometria_plana` | ⏳ não iniciado |
 | `05_trigonometria` | ✅ completo |
 | `06_geometria_espacial` | ⏳ não iniciado |
@@ -76,6 +76,11 @@ Os módulos 12 a 14 são opcionais, voltados a quem quer seguir para Engenharia 
 - **[0206b_inequacoes_exponenciais_e_logaritmicas_gabarito.ipynb](02_logaritmos/0206b_inequacoes_exponenciais_e_logaritmicas_gabarito.ipynb)** — gabarito comentado dos exercícios.
 - **[0207a_logaritmos_decimais.ipynb](02_logaritmos/0207a_logaritmos_decimais.ipynb)** — sétimo e último notebook do módulo, respondendo à pergunta deixada no fim do notebook anterior: como se calculava logaritmo antes das calculadoras. Por que a base 10 foi escolhida para as tábuas de cálculo (log(10ⁿ)=n); contexto histórico de Napier e Briggs (1614, 1624); decomposição do logaritmo decimal em característica (parte inteira) e mantissa (parte decimal), com a regra prática para determinar a característica só pela posição da vírgula; como as tábuas eram organizadas (linhas para os dois primeiros algarismos, colunas para o terceiro) e como consultá-las; o processo completo — característica + mantissa tabelada — e seu caminho inverso, o antilogaritmo; interpolação linear para números não tabelados exatamente; e comparação final entre o método da tábua e o cálculo direto com `math.log10`, fechando com uma curiosidade sobre a régua de cálculo. Traz uma linha do tempo histórica, uma tábua de logaritmos simplificada gerada em Python e cinco widgets interativos (decomposição em característica/mantissa, cálculo da característica passo a passo, destaque na tábua, simulador de consulta à tábua, interpolação linear visual e comparação tábua × Python) e fecha o módulo 02 relembrando toda a jornada, de potências e raízes até aqui.
 - **[0207b_logaritmos_decimais_gabarito.ipynb](02_logaritmos/0207b_logaritmos_decimais_gabarito.ipynb)** — gabarito comentado dos exercícios.
+
+### 03 — Progressões, Matrizes e Sistemas Lineares
+
+- **[0301a_sequencias.ipynb](03_progressoes_matrizes_e_sistemas_lineares/0301a_sequencias.ipynb)** — primeiro notebook do módulo. Sequência como função de domínio em ℕ* (ou num subconjunto inicial dele), com a notação de termo geral aₙ e a diferença entre sequência finita e infinita; igualdade de sequências (mesmo domínio e mesmos termos), incluindo o erro comum de confundir números em ordem diferente com sequências iguais e o caso de duas leis diferentes gerarem a mesma sequência; lei de formação explícita (aₙ em função direta de n, com os números ímpares como exemplo) e uma atividade de descoberta de padrão que revela a lei dos números triangulares (aₙ = n(n+1)/2); e lei de formação recursiva, com a sequência de Fibonacci como exemplo central, a curiosidade histórica da razão áurea, e o cuidado com recursão sem caso-base (RecursionError). Traz a sequência de figuras de bolinhas triangulares como fio condutor (fechado com a descoberta interativa da lei de formação) e quatro widgets interativos (slider de n sobre a_n=2n-1, sliders de coeficientes para descobrir a lei triangular, tabela/gráfico de Fibonacci, e slider da quantidade de termos de Fibonacci gerados).
+- **[0301b_sequencias_gabarito.ipynb](03_progressoes_matrizes_e_sistemas_lineares/0301b_sequencias_gabarito.ipynb)** — gabarito comentado dos exercícios.
 
 ### 05 — Trigonometria
 
