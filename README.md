@@ -14,7 +14,7 @@ A ordem das pastas é a ordem sugerida de estudo:
 | `03_progressoes_matrizes_e_sistemas_lineares` | ✅ completo |
 | `04_geometria_plana` | ✅ completo |
 | `05_trigonometria` | ✅ completo |
-| `06_geometria_espacial` | ⏳ não iniciado |
+| `06_geometria_espacial` | ✅ em andamento |
 | `07_geometria_analitica_plana_e_espacial` | ⏳ não iniciado |
 | `08_analise_combinatoria_e_probabilidade` | ⏳ não iniciado |
 | `09_complexos_polinomios_e_equacoes` | ⏳ não iniciado |
@@ -157,6 +157,13 @@ Os módulos 12 a 14 são opcionais, voltados a quem quer seguir para Engenharia 
 - **[0509b_triangulos_retangulos_gabarito.ipynb](05_trigonometria/0509b_triangulos_retangulos_gabarito.ipynb)** — gabarito comentado dos exercícios.
 - **[0510a_triangulos_quaisquer.ipynb](05_trigonometria/0510a_triangulos_quaisquer.ipynb)** — décimo e último notebook do módulo. Propriedades gerais de qualquer triângulo (soma dos ângulos internos = 180°, desigualdade triangular, classificação por lados e por ângulos); a Lei dos Senos (a/sen A = b/sen B = c/sen C = 2R), deduzida traçando a altura relativa a um lado e reaproveitando os triângulos retângulos de `0509a_triangulos_retangulos.ipynb`; a Lei dos Cossenos (c² = a² + b² − 2ab·cos C), deduzida por coordenadas e apresentada como generalização do Teorema de Pitágoras; a área do triângulo por trigonometria (Área = ½·a·b·sen C) conferida contra a Fórmula de Herão; a sistematização de quando usar cada lei (ALA/AAL, LAL, LLL) e o caso ambíguo LLA, que pode ter 0, 1 ou 2 soluções; e uma aplicação final que combina as duas leis em sequência para rastrear a posição de um avião a partir de duas estações terrestres. Traz três widgets interativos (triângulo da "ilha no lago" recalculado ao vivo por sliders de base e dois ângulos; e o cenário de rastreamento do avião, com sliders para os ângulos medidos em cada estação) e resolve por completo, em dois momentos (Blocos 2 e 3), o problema da distância até uma ilha inacessível (Lei dos Senos) e da posição final de um navio após uma mudança de rumo (Lei dos Cossenos), retomando os dois ganchos do notebook. Fecha o módulo de Trigonometria.
 - **[0510b_triangulos_quaisquer_gabarito.ipynb](05_trigonometria/0510b_triangulos_quaisquer_gabarito.ipynb)** — gabarito comentado dos exercícios.
+
+### 06 — Geometria Espacial
+
+Todas as figuras do módulo são desenhadas em 3D com Plotly pelo arquivo auxiliar **[utils_3d.py](06_geometria_espacial/utils_3d.py)**, importado no início de cada notebook (no Colab, ele é baixado automaticamente). O arquivo é comentado e escrito para ser lido por iniciantes.
+
+- **[0601a_introducao_geometria_de_posicao.ipynb](06_geometria_espacial/0601a_introducao_geometria_de_posicao.ipynb)** — primeiro notebook do módulo. A passagem da Geometria Plana para a Espacial (figura plana × figura espacial) e a Geometria de Posição; ponto, reta e plano como conceitos primitivos, com a notação do módulo (pertence $\in$ para pontos, está contida $\subset$ para retas); pontos colineares e coplanares; os postulados da existência, da determinação da reta, da determinação do plano, da inclusão e da interseção; a contagem de retas e planos determinados por n pontos com laços aninhados; os quatro modos de determinar um plano e o feixe de planos que passam por uma reta; as posições relativas de duas retas no espaço (coincidentes, concorrentes, paralelas e reversas), exploradas nas arestas de um cubo; e as posições relativas de dois planos (coincidentes, secantes e paralelos), fechando com os três planos do canto de uma sala. Traz seis widgets interativos (mesa de quatro pernas com a quarta perna ajustável, reta que "fura" o plano conforme um ponto sobe, os quatro modos de determinação do plano, plano girando no feixe em torno de uma reta, duas arestas quaisquer do cubo com classificação conferida automaticamente, e dois planos com altura e inclinação ajustáveis) e responde ao gancho de por que a mesa de três pernas nunca balança.
+- **[0601b_introducao_geometria_de_posicao_gabarito.ipynb](06_geometria_espacial/0601b_introducao_geometria_de_posicao_gabarito.ipynb)** — gabarito comentado dos exercícios.
 
 ## Como rodar localmente
 
