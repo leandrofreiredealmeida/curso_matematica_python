@@ -30,6 +30,10 @@ Histórico de versões
 --------------------
 v1 — notebook 01: núcleo (figura, ponto, segmento, reta, plano, interseção de planos,
      cubo, conferência de posição de retas)
+v2 — notebook 02: construtores (plano por três pontos, plano paralelo a uma reta,
+     interseção reta-plano), paralela por um ponto, interseção reta-plano desenhada,
+     ângulos (arco, ângulo reto, ângulo entre retas), conferência de reta-plano, de
+     planos, distância e ângulo entre retas
 """
 
 # ==================================================================================
@@ -150,6 +154,22 @@ def _intersecao_de_planos(
     return ponto, _normalizar(direcao)
 
 
+def _encontro_de_retas(
+    a1: Vetor3D, a2: Vetor3D, b1: Vetor3D, b2: Vetor3D
+) -> np.ndarray:
+    """Calcula o ponto de encontro de duas retas concorrentes (a1a2 e b1b2).
+
+    Procuramos números t e k tais que a1 + t·(a2 - a1) = b1 + k·(b2 - b1). São três
+    equações (uma para x, uma para y, uma para z) e duas incógnitas; o método dos
+    mínimos quadrados do NumPy resolve esse sistema "sobrando equação".
+    """
+    pa1, pa2 = _como_vetor(a1), _como_vetor(a2)
+    pb1, pb2 = _como_vetor(b1), _como_vetor(b2)
+    coeficientes = np.column_stack([pa2 - pa1, -(pb2 - pb1)])
+    (t, _), *_ = np.linalg.lstsq(coeficientes, pb1 - pa1, rcond=None)
+    return pa1 + t * (pa2 - pa1)
+
+
 # ==================================================================================
 # Figura e exibição
 # ==================================================================================
@@ -237,6 +257,133 @@ def mostrar(fig: go.Figure) -> None:
 # ==================================================================================
 # Elementos básicos: ponto, segmento, reta, plano e rótulo
 # ==================================================================================
+
+# --- Construtores (devolvem dados, não desenham) ---
+def plano_por_tres_pontos(a: Vetor3D, b: Vetor3D, c: Vetor3D) -> Plano:
+    """Devolve o plano determinado por três pontos não colineares.
+
+    Esta função não desenha nada: ela devolve o plano no formato (ponto, normal),
+    o mesmo usado por `desenhar_plano`, `desenhar_intersecao_de_planos` e pelas
+    funções de conferência. As contas internas usam vetores, assunto do módulo 07
+    (Geometria Analítica).
+
+    Parâmetros:
+        a, b, c: os três pontos, cada um como (x, y, z).
+
+    Retorna:
+        Uma tupla (ponto, normal). O ponto devolvido é o baricentro de a, b e c (o
+        "ponto de equilíbrio" do triângulo abc).
+
+    Levanta:
+        ValueError: se os três pontos forem colineares.
+
+    Exemplo:
+        >>> base = plano_por_tres_pontos((0, 0, 0), (2, 0, 0), (2, 2, 0))
+        >>> fig = desenhar_plano(fig, *base, rotulo="α")
+    """
+    pa, pb, pc = _como_vetor(a), _como_vetor(b), _como_vetor(c)
+
+    # Se AB e AC apontam na mesma direção, o produto vetorial dá (quase) zero:
+    # os três pontos estão numa mesma reta.
+    normal = np.cross(pb - pa, pc - pa)
+    escala = np.linalg.norm(pb - pa) * np.linalg.norm(pc - pa)
+    if np.linalg.norm(normal) <= TOLERANCIA * max(escala, 1.0):
+        raise ValueError(
+            "Os três pontos são colineares: eles não determinam um único plano."
+        )
+
+    baricentro = (pa + pb + pc) / 3
+    return baricentro, normal
+
+
+def plano_paralelo_a_reta(
+    a1: Vetor3D, a2: Vetor3D, b1: Vetor3D, b2: Vetor3D
+) -> Plano:
+    """Devolve o plano que contém a reta a1a2 e é paralelo à reta b1b2.
+
+    É a construção do notebook 02: por um ponto da primeira reta traçamos a
+    paralela à segunda; as duas retas concorrentes determinam o plano. Esta função
+    não desenha nada, e as contas internas usam vetores, assunto do módulo 07
+    (Geometria Analítica).
+
+    Parâmetros:
+        a1, a2: dois pontos distintos da reta que fica contida no plano.
+        b1, b2: dois pontos distintos da reta que fica paralela ao plano.
+
+    Retorna:
+        Uma tupla (ponto, normal). O ponto devolvido é o ponto médio de a1a2.
+
+    Levanta:
+        ValueError: se as duas retas forem paralelas (ou coincidentes).
+
+    Exemplo:
+        >>> v = vertices_do_cubo()
+        >>> alfa = plano_paralelo_a_reta(v["A"], v["B"], v["C"], v["G"])
+    """
+    pa1, pa2 = _como_vetor(a1), _como_vetor(a2)
+    pb1, pb2 = _como_vetor(b1), _como_vetor(b2)
+    u = pa2 - pa1  # direção da reta contida no plano
+    v = pb2 - pb1  # direção da reta paralela ao plano
+    if np.linalg.norm(u) < TOLERANCIA or np.linalg.norm(v) < TOLERANCIA:
+        raise ValueError(
+            "Os dois pontos são iguais: é preciso dois pontos distintos para "
+            "determinar uma reta."
+        )
+
+    # O plano procurado tem as duas direções, u e v; o normal é perpendicular a
+    # ambas. Se u e v forem paralelos, o produto vetorial dá zero e o plano não é
+    # único (qualquer plano do feixe que passa pela primeira reta serviria).
+    normal = np.cross(u, v)
+    if np.linalg.norm(normal) <= TOLERANCIA * np.linalg.norm(u) * np.linalg.norm(v):
+        raise ValueError(
+            "As retas são paralelas: existem infinitos planos que contêm a primeira "
+            "e são paralelos à segunda."
+        )
+    return (pa1 + pa2) / 2, normal
+
+
+def intersecao_reta_plano(
+    a: Vetor3D, b: Vetor3D, plano: Plano
+) -> tuple[float, float, float] | None:
+    """Devolve o ponto onde a reta ab "fura" o plano.
+
+    Esta função não desenha nada. As contas internas usam vetores, assunto do
+    módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        a, b: dois pontos distintos da reta.
+        plano: o plano, como (ponto, normal).
+
+    Retorna:
+        O ponto de interseção, como (x, y, z), ou None se a reta for paralela ao
+        plano ou estiver contida nele (nesses casos não há um único ponto comum).
+
+    Exemplo:
+        >>> intersecao_reta_plano((0, 0, 0), (2, 2, 2), ((0, 0, 1), (0, 0, 1)))
+        (1.0, 1.0, 1.0)
+    """
+    pa, pb = _como_vetor(a), _como_vetor(b)
+    ponto, normal = _como_vetor(plano[0]), _como_vetor(plano[1])
+    direcao = pb - pa
+    if np.linalg.norm(direcao) < TOLERANCIA:
+        raise ValueError(
+            "Os dois pontos são iguais: é preciso dois pontos distintos para "
+            "determinar uma reta."
+        )
+
+    # Andando sobre a reta (a + t·direcao), a "altura" em relação ao plano muda
+    # na razão normal·direcao. Se essa razão é zero, a reta corre paralela ao plano.
+    velocidade = np.dot(normal, direcao)
+    if abs(velocidade) <= TOLERANCIA * np.linalg.norm(normal) * np.linalg.norm(direcao):
+        return None
+
+    # Escolhemos t para que a "altura" de a + t·direcao em relação ao plano seja 0.
+    t = np.dot(normal, ponto - pa) / velocidade
+    x, y, z = pa + t * direcao
+    return float(x), float(y), float(z)
+
+
+# --- Desenhos ---
 def desenhar_ponto(
     fig: go.Figure,
     ponto: Vetor3D,
@@ -445,6 +592,54 @@ def desenhar_reta_por_dois_pontos(
     )
 
 
+def desenhar_paralela_por_ponto(
+    fig: go.Figure,
+    a: Vetor3D,
+    b: Vetor3D,
+    ponto: Vetor3D,
+    rotulo: str | None = None,
+    cor: str | None = None,
+    comprimento: float = 10,
+    espessura: float = 4,
+    tracejado: bool = False,
+) -> go.Figure:
+    """Desenha a reta que passa por `ponto` e é paralela à reta ab.
+
+    Pelo postulado das paralelas, essa reta é única. O trecho desenhado fica
+    centrado em `ponto`.
+
+    Parâmetros:
+        fig: a figura.
+        a, b: dois pontos distintos da reta de referência.
+        ponto: o ponto por onde passa a paralela, como (x, y, z).
+        rotulo: nome da paralela (opcional).
+        cor: cor da reta. Se não for informada, usa CORES["reta"].
+        comprimento: tamanho do trecho desenhado.
+        espessura: espessura da linha.
+        tracejado: se True, desenha a linha tracejada.
+
+    Retorna:
+        A mesma figura, com a paralela desenhada.
+
+    Levanta:
+        ValueError: se a e b forem iguais.
+
+    Exemplo:
+        >>> fig = desenhar_paralela_por_ponto(fig, (0, 0, 0), (1, 0, 0), (0, 2, 1))
+    """
+    pa, pb = _como_vetor(a), _como_vetor(b)
+    if np.linalg.norm(pb - pa) < TOLERANCIA:
+        raise ValueError(
+            "Os dois pontos são iguais: é preciso dois pontos distintos para "
+            "determinar uma reta."
+        )
+    # A paralela tem a mesma direção de ab; só muda o ponto por onde passa.
+    return desenhar_reta(
+        fig, ponto, pb - pa, rotulo=rotulo, cor=cor, comprimento=comprimento,
+        espessura=espessura, tracejado=tracejado,
+    )
+
+
 def desenhar_plano(
     fig: go.Figure,
     ponto: Vetor3D,
@@ -565,16 +760,8 @@ def desenhar_plano_por_tres_pontos(
     """
     pa, pb, pc = _como_vetor(a), _como_vetor(b), _como_vetor(c)
 
-    # Se AB e AC apontam na mesma direção, o produto vetorial dá (quase) zero:
-    # os três pontos estão numa mesma reta.
-    normal = np.cross(pb - pa, pc - pa)
-    escala = np.linalg.norm(pb - pa) * np.linalg.norm(pc - pa)
-    if np.linalg.norm(normal) <= TOLERANCIA * max(escala, 1.0):
-        raise ValueError(
-            "Os três pontos são colineares: eles não determinam um único plano."
-        )
-
-    baricentro = (pa + pb + pc) / 3
+    # O construtor já confere se os pontos são colineares (e avisa, se forem).
+    baricentro, normal = plano_por_tres_pontos(pa, pb, pc)
 
     # Medimos o quanto cada ponto se afasta do centro nas direções u e v do plano.
     # O quadrado precisa de lado maior que o dobro do maior afastamento (com folga).
@@ -587,6 +774,50 @@ def desenhar_plano_por_tres_pontos(
 
     return desenhar_plano(
         fig, baricentro, normal, rotulo=rotulo, cor=cor, opacidade=opacidade,
+        tamanho=tamanho, mostrar_borda=mostrar_borda,
+    )
+
+
+def desenhar_plano_paralelo_a_reta(
+    fig: go.Figure,
+    a1: Vetor3D,
+    a2: Vetor3D,
+    b1: Vetor3D,
+    b2: Vetor3D,
+    rotulo: str | None = None,
+    cor: str | None = None,
+    opacidade: float = 0.35,
+    tamanho: float = 6,
+    mostrar_borda: bool = True,
+) -> go.Figure:
+    """Desenha o plano que contém a reta a1a2 e é paralelo à reta b1b2.
+
+    O pedaço desenhado fica centrado no ponto médio de a1a2. Para obter o plano
+    como dado, sem desenhar, use `plano_paralelo_a_reta`.
+
+    Parâmetros:
+        fig: a figura.
+        a1, a2: dois pontos distintos da reta contida no plano.
+        b1, b2: dois pontos distintos da reta paralela ao plano.
+        rotulo: nome do plano (opcional).
+        cor: cor do plano. Se não for informada, usa CORES["plano"].
+        opacidade: de 0 (invisível) a 1 (totalmente opaco).
+        tamanho: lado do quadrado desenhado.
+        mostrar_borda: se True, desenha o contorno do quadrado.
+
+    Retorna:
+        A mesma figura, com o plano desenhado.
+
+    Levanta:
+        ValueError: se as duas retas forem paralelas (ou coincidentes).
+
+    Exemplo:
+        >>> v = vertices_do_cubo()
+        >>> fig = desenhar_plano_paralelo_a_reta(fig, v["A"], v["B"], v["C"], v["G"])
+    """
+    ponto, normal = plano_paralelo_a_reta(a1, a2, b1, b2)
+    return desenhar_plano(
+        fig, ponto, normal, rotulo=rotulo, cor=cor, opacidade=opacidade,
         tamanho=tamanho, mostrar_borda=mostrar_borda,
     )
 
@@ -632,6 +863,236 @@ def desenhar_intersecao_de_planos(
         fig, ponto, direcao, rotulo=rotulo, cor=cor or CORES["destaque"],
         comprimento=comprimento, espessura=espessura,
     )
+
+
+def desenhar_intersecao_reta_plano(
+    fig: go.Figure,
+    a: Vetor3D,
+    b: Vetor3D,
+    plano: Plano,
+    rotulo: str | None = None,
+    cor: str | None = None,
+    tamanho: float = 7,
+) -> go.Figure:
+    """Marca o ponto onde a reta ab "fura" o plano.
+
+    Se a reta for paralela ao plano ou estiver contida nele, não existe um único
+    ponto de interseção: a figura volta sem alterações (use
+    `classificar_posicao_reta_plano` para saber qual é o caso).
+
+    Parâmetros:
+        fig: a figura.
+        a, b: dois pontos distintos da reta.
+        plano: o plano, como (ponto, normal).
+        rotulo: nome do ponto, por exemplo "P" (opcional).
+        cor: cor do ponto. Se não for informada, usa CORES["destaque"].
+        tamanho: tamanho do marcador.
+
+    Retorna:
+        A mesma figura, com o ponto de interseção marcado (se existir).
+
+    Exemplo:
+        >>> alfa = ((0, 0, 0), (0, 0, 1))
+        >>> fig = desenhar_intersecao_reta_plano(fig, (0, 0, 1), (1, 1, 2), alfa, "P")
+    """
+    ponto = intersecao_reta_plano(a, b, plano)
+    if ponto is None:
+        return fig
+    return desenhar_ponto(
+        fig, ponto, rotulo=rotulo, cor=cor or CORES["destaque"], tamanho=tamanho
+    )
+
+
+def desenhar_angulo(
+    fig: go.Figure,
+    vertice: Vetor3D,
+    ponto1: Vetor3D,
+    ponto2: Vetor3D,
+    rotulo: str | None = None,
+    cor: str | None = None,
+    raio: float = 0.6,
+    espessura: float = 3,
+) -> go.Figure:
+    """Desenha o arco que marca o ângulo entre as semirretas VP1 e VP2.
+
+    O arco é um pedaço de circunferência de centro no vértice V, desenhado no plano
+    das duas semirretas (como o arco que fazemos com o compasso na Geometria Plana).
+
+    Parâmetros:
+        fig: a figura.
+        vertice: o vértice V do ângulo, como (x, y, z).
+        ponto1: um ponto da primeira semirreta (diferente de V).
+        ponto2: um ponto da segunda semirreta (diferente de V).
+        rotulo: texto escrito junto ao arco, por exemplo "θ" ou "45°" (opcional).
+        cor: cor do arco. Se não for informada, usa CORES["destaque"].
+        raio: raio do arco.
+        espessura: espessura da linha.
+
+    Retorna:
+        A mesma figura, com o arco desenhado.
+
+    Exemplo:
+        >>> fig = desenhar_angulo(fig, (0, 0, 0), (1, 0, 0), (1, 1, 0), rotulo="45°")
+    """
+    v = _como_vetor(vertice)
+    u1 = _normalizar(_como_vetor(ponto1) - v)
+    u2 = _normalizar(_como_vetor(ponto2) - v)
+    cor = cor or CORES["destaque"]
+
+    # Abertura do ângulo, em radianos. O clip evita erros de arredondamento como
+    # cos = 1.0000000002, que o arco-cosseno não aceita.
+    abertura = np.arccos(np.clip(np.dot(u1, u2), -1.0, 1.0))
+    if abertura < TOLERANCIA:
+        # Semirretas sobrepostas: o ângulo é nulo e não há arco para desenhar.
+        return fig
+
+    # Montamos duas direções perpendiculares no plano do ângulo: e1 sobre a
+    # primeira semirreta e e2 "girada de 90°" em direção à segunda.
+    e1 = u1
+    componente = u2 - np.dot(u2, u1) * u1
+    if np.linalg.norm(componente) < TOLERANCIA:
+        # Ângulo raso (180°): qualquer direção perpendicular serve para o arco.
+        e2, _ = _base_do_plano(u1)
+    else:
+        e2 = _normalizar(componente)
+
+    # Cerca de 30 pontos do arco, indo de e1 (ângulo 0) até u2 (ângulo `abertura`).
+    angulos = np.linspace(0, abertura, 30)
+    arco = np.array([v + raio * (np.cos(t) * e1 + np.sin(t) * e2) for t in angulos])
+    fig.add_trace(
+        go.Scatter3d(
+            x=arco[:, 0], y=arco[:, 1], z=arco[:, 2],
+            mode="lines",
+            line=dict(color=cor, width=espessura),
+            hoverinfo="skip",
+        )
+    )
+
+    if rotulo:
+        # O texto fica sobre a bissetriz (metade da abertura), um pouco além do arco.
+        meio = abertura / 2
+        posicao = v + 1.4 * raio * (np.cos(meio) * e1 + np.sin(meio) * e2)
+        fig = adicionar_rotulo(fig, posicao, rotulo, cor=cor)
+    return fig
+
+
+def desenhar_angulo_reto(
+    fig: go.Figure,
+    vertice: Vetor3D,
+    ponto1: Vetor3D,
+    ponto2: Vetor3D,
+    cor: str | None = None,
+    tamanho: float = 0.3,
+) -> go.Figure:
+    """Desenha o "quadradinho" que marca um ângulo reto entre VP1 e VP2.
+
+    Parâmetros:
+        fig: a figura.
+        vertice: o vértice V do ângulo, como (x, y, z).
+        ponto1: um ponto da primeira semirreta (diferente de V).
+        ponto2: um ponto da segunda semirreta (diferente de V).
+        cor: cor do quadradinho. Se não for informada, usa CORES["destaque"].
+        tamanho: lado do quadradinho.
+
+    Retorna:
+        A mesma figura, com a marca de ângulo reto.
+
+    Exemplo:
+        >>> fig = desenhar_angulo_reto(fig, (0, 0, 0), (1, 0, 0), (0, 0, 1))
+    """
+    v = _como_vetor(vertice)
+    u1 = _normalizar(_como_vetor(ponto1) - v)
+    u2 = _como_vetor(ponto2) - v
+
+    # Se o ângulo não for exatamente reto (erro de arredondamento), "endireitamos"
+    # a segunda direção para o quadradinho ficar com cantos de 90°.
+    u2 = _normalizar(u2 - np.dot(u2, u1) * u1)
+
+    # O quadradinho é uma linha com três trechos: sai de perto da primeira
+    # semirreta, faz a quina e volta para a segunda semirreta.
+    cantos = np.array([
+        v + tamanho * u1,
+        v + tamanho * u1 + tamanho * u2,
+        v + tamanho * u2,
+    ])
+    fig.add_trace(
+        go.Scatter3d(
+            x=cantos[:, 0], y=cantos[:, 1], z=cantos[:, 2],
+            mode="lines",
+            line=dict(color=cor or CORES["destaque"], width=3),
+            hoverinfo="skip",
+        )
+    )
+    return fig
+
+
+def desenhar_angulo_entre_retas(
+    fig: go.Figure,
+    a1: Vetor3D,
+    a2: Vetor3D,
+    b1: Vetor3D,
+    b2: Vetor3D,
+    vertice: Vetor3D | None = None,
+    rotulo: str | None = None,
+    cor: str | None = None,
+    raio: float = 0.6,
+) -> go.Figure:
+    """Desenha o ângulo entre a reta r = a1a2 e a reta s = b1b2.
+
+    Segue a definição do notebook 02: o ângulo entre duas retas é sempre agudo ou
+    reto.
+    - Concorrentes: o arco (ou o quadradinho, se for reto) fica no ponto de encontro.
+    - Reversas: traçamos, tracejada, a paralela a s pelo vértice (o ponto `vertice`
+      ou, se ele não for dado, o ponto a1) e marcamos o ângulo entre r e essa
+      paralela.
+    - Paralelas ou coincidentes: o ângulo é 0° e nada é desenhado.
+
+    Parâmetros:
+        fig: a figura.
+        a1, a2: dois pontos distintos da reta r.
+        b1, b2: dois pontos distintos da reta s.
+        vertice: para retas reversas, o ponto de r onde a paralela a s é traçada
+            (opcional; padrão: a1). É ignorado nos outros casos.
+        rotulo: texto escrito junto ao arco, por exemplo "θ" (opcional).
+        cor: cor do arco. Se não for informada, usa CORES["destaque"].
+        raio: raio do arco (e lado do quadradinho, proporcionalmente).
+
+    Retorna:
+        A mesma figura, com o ângulo desenhado.
+
+    Exemplo:
+        >>> v = vertices_do_cubo()
+        >>> fig = desenhar_angulo_entre_retas(fig, v["A"], v["B"], v["C"], v["H"])
+    """
+    pa1, pa2 = _como_vetor(a1), _como_vetor(a2)
+    pb1, pb2 = _como_vetor(b1), _como_vetor(b2)
+    posicao = classificar_posicao_retas(pa1, pa2, pb1, pb2)
+    if posicao in ("paralelas", "coincidentes"):
+        return fig
+
+    # Cada reta forma dois ângulos com a outra (um agudo e seu suplemento). Para
+    # ficar com o agudo, escolhemos o sentido de s que "concorda" com o de r:
+    # se os dois vetores apontam para lados opostos, invertemos o de s.
+    u = _normalizar(pa2 - pa1)
+    w = _normalizar(pb2 - pb1)
+    if np.dot(u, w) < 0:
+        w = -w
+
+    if posicao == "concorrentes":
+        v = _encontro_de_retas(pa1, pa2, pb1, pb2)
+    else:
+        # Reversas: o vértice fica em r, e por ele passa a paralela a s.
+        v = pa1 if vertice is None else _como_vetor(vertice)
+        fig = desenhar_reta(
+            fig, v, w, cor=CORES["apoio"], comprimento=6, espessura=3, tracejado=True
+        )
+
+    if abs(np.dot(u, w)) < TOLERANCIA:
+        # Ângulo reto: no lugar do arco, o quadradinho.
+        return desenhar_angulo_reto(
+            fig, v, v + u, v + w, cor=cor, tamanho=raio / 2
+        )
+    return desenhar_angulo(fig, v, v + u, v + w, rotulo=rotulo, cor=cor, raio=raio)
 
 
 def adicionar_rotulo(
@@ -865,3 +1326,132 @@ def planos_sao_paralelos(plano1: Plano, plano2: Plano) -> bool:
     n2 = _como_vetor(plano2[1])
     produto = np.linalg.norm(np.cross(n1, n2))
     return bool(produto <= TOLERANCIA * np.linalg.norm(n1) * np.linalg.norm(n2))
+
+
+def classificar_posicao_reta_plano(a: Vetor3D, b: Vetor3D, plano: Plano) -> str:
+    """Classifica a posição relativa da reta ab e de um plano.
+
+    Esta função usa vetores, assunto do módulo 07 (Geometria Analítica). Aqui ela
+    serve apenas para conferir a sua resposta.
+
+    Parâmetros:
+        a, b: dois pontos distintos da reta.
+        plano: o plano, como (ponto, normal).
+
+    Retorna:
+        Exatamente uma das palavras: "contida", "concorrente" ou "paralela".
+
+    Levanta:
+        ValueError: se a e b forem iguais.
+
+    Exemplo:
+        >>> v = vertices_do_cubo()
+        >>> base = plano_por_tres_pontos(v["A"], v["B"], v["C"])
+        >>> classificar_posicao_reta_plano(v["E"], v["F"], base)
+        'paralela'
+    """
+    pa, pb = _como_vetor(a), _como_vetor(b)
+    ponto, normal = _como_vetor(plano[0]), _como_vetor(plano[1])
+    direcao = pb - pa
+    if np.linalg.norm(direcao) < TOLERANCIA:
+        raise ValueError(
+            "Os dois pontos são iguais: é preciso dois pontos distintos para "
+            "determinar uma reta."
+        )
+    tam_n = np.linalg.norm(normal)
+
+    # Se a direção da reta não é perpendicular ao normal, a reta "atravessa" o
+    # plano: tem exatamente um ponto em comum com ele.
+    if abs(np.dot(normal, direcao)) > TOLERANCIA * tam_n * np.linalg.norm(direcao):
+        return "concorrente"
+
+    # Direção perpendicular ao normal: a reta corre "deitada" em relação ao plano.
+    # Ou ela está dentro dele (o ponto a pertence ao plano), ou fica fora, paralela.
+    distancia = abs(np.dot(normal, pa - ponto)) / tam_n
+    if distancia <= TOLERANCIA * max(np.linalg.norm(pa - ponto), 1.0):
+        return "contida"
+    return "paralela"
+
+
+def classificar_posicao_planos(plano1: Plano, plano2: Plano) -> str:
+    """Classifica a posição relativa de dois planos.
+
+    Esta função usa vetores, assunto do módulo 07 (Geometria Analítica). Aqui ela
+    serve apenas para conferir a sua resposta.
+
+    Parâmetros:
+        plano1: o primeiro plano, como (ponto, normal).
+        plano2: o segundo plano, como (ponto, normal).
+
+    Retorna:
+        Exatamente uma das palavras: "coincidentes", "secantes" ou "paralelos".
+
+    Exemplo:
+        >>> classificar_posicao_planos(((0, 0, 0), (0, 0, 1)), ((0, 0, 3), (0, 0, 2)))
+        'paralelos'
+    """
+    if not planos_sao_paralelos(plano1, plano2):
+        return "secantes"
+
+    # Normais com a mesma direção: os planos são paralelos ou o mesmo plano.
+    # Basta ver se o ponto do segundo plano pertence ao primeiro.
+    p1, n1 = _como_vetor(plano1[0]), _como_vetor(plano1[1])
+    p2 = _como_vetor(plano2[0])
+    distancia = abs(np.dot(n1, p2 - p1)) / np.linalg.norm(n1)
+    if distancia <= TOLERANCIA * max(np.linalg.norm(p2 - p1), 1.0):
+        return "coincidentes"
+    return "paralelos"
+
+
+def medir_distancia(p: Vetor3D, q: Vetor3D) -> float:
+    """Mede a distância entre dois pontos: é a nossa trena.
+
+    Esta função usa vetores, assunto do módulo 07 (Geometria Analítica). Aqui ela
+    serve apenas para conferir a sua resposta. A fórmula da distância entre dois
+    pontos com coordenadas (uma "Pitágoras em 3D") aparece no módulo 07.
+
+    Parâmetros:
+        p, q: os dois pontos, cada um como (x, y, z).
+
+    Retorna:
+        A distância entre p e q.
+
+    Exemplo:
+        >>> v = vertices_do_cubo()
+        >>> round(medir_distancia(v["A"], v["G"]), 4)
+        3.4641
+    """
+    return float(np.linalg.norm(_como_vetor(q) - _como_vetor(p)))
+
+
+def medir_angulo_entre_retas(
+    a1: Vetor3D, a2: Vetor3D, b1: Vetor3D, b2: Vetor3D
+) -> float:
+    """Mede o ângulo entre as retas a1a2 e b1b2, em graus.
+
+    Segue a definição do notebook 02: o resultado está sempre entre 0° e 90°
+    (inclusive). Funciona para retas concorrentes, paralelas e reversas; para as
+    reversas, é o ângulo entre uma delas e uma paralela à outra que a corta.
+
+    Esta função usa vetores, assunto do módulo 07 (Geometria Analítica). Aqui ela
+    serve apenas para conferir a sua resposta.
+
+    Parâmetros:
+        a1, a2: dois pontos distintos da reta r.
+        b1, b2: dois pontos distintos da reta s.
+
+    Retorna:
+        O ângulo entre r e s, em graus.
+
+    Exemplo:
+        >>> v = vertices_do_cubo()
+        >>> round(medir_angulo_entre_retas(v["A"], v["B"], v["C"], v["H"]), 1)
+        45.0
+    """
+    u = _normalizar(_como_vetor(a2) - _como_vetor(a1))
+    w = _normalizar(_como_vetor(b2) - _como_vetor(b1))
+
+    # O valor absoluto escolhe sempre o ângulo agudo (ou reto) entre as duas
+    # direções; o clip protege o arco-cosseno de erros de arredondamento.
+    cosseno = min(abs(float(np.dot(u, w))), 1.0)
+    return float(np.degrees(np.arccos(cosseno)))
