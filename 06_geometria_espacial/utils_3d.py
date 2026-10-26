@@ -34,6 +34,10 @@ v2 — notebook 02: construtores (plano por três pontos, plano paralelo a uma r
      interseção reta-plano), paralela por um ponto, interseção reta-plano desenhada,
      ângulos (arco, ângulo reto, ângulo entre retas), conferência de reta-plano, de
      planos, distância e ângulo entre retas
+v3 — notebook 03: construtores de perpendicularidade (pé da perpendicular ao plano e
+     à reta, plano perpendicular a uma reta, plano perpendicular a outro por uma
+     reta), desenhos correspondentes e conferências de reta perpendicular a plano e
+     de planos perpendiculares
 """
 
 # ==================================================================================
@@ -383,6 +387,155 @@ def intersecao_reta_plano(
     return float(x), float(y), float(z)
 
 
+def pe_da_perpendicular_ao_plano(
+    ponto: Vetor3D, plano: Plano
+) -> tuple[float, float, float]:
+    """Devolve o pé da perpendicular traçada de `ponto` até o plano.
+
+    O pé é o ponto onde a reta que passa por `ponto` e é perpendicular ao plano
+    encontra o plano. Se o ponto já estiver no plano, a função devolve o próprio
+    ponto. Esta função não desenha nada, e as contas internas usam vetores, assunto
+    do módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        ponto: o ponto, como (x, y, z).
+        plano: o plano, como (ponto, normal).
+
+    Retorna:
+        O pé da perpendicular, como (x, y, z).
+
+    Exemplo:
+        >>> pe_da_perpendicular_ao_plano((1, 2, 5), ((0, 0, 0), (0, 0, 1)))
+        (1.0, 2.0, 0.0)
+    """
+    p = _como_vetor(ponto)
+    ponto_do_plano, normal = _como_vetor(plano[0]), _como_vetor(plano[1])
+    n = _normalizar(normal)
+
+    # A "altura" do ponto em relação ao plano, medida na direção do normal.
+    # Descendo essa altura ao longo do normal, chegamos ao plano.
+    altura = np.dot(p - ponto_do_plano, n)
+    x, y, z = p - altura * n
+    return float(x), float(y), float(z)
+
+
+def pe_da_perpendicular_a_reta(
+    ponto: Vetor3D, a: Vetor3D, b: Vetor3D
+) -> tuple[float, float, float]:
+    """Devolve o pé da perpendicular traçada de `ponto` até a reta ab.
+
+    É o ponto da reta ab mais próximo de `ponto`. Se o ponto estiver na reta, a
+    função devolve o próprio ponto. Esta função não desenha nada, e as contas
+    internas usam vetores, assunto do módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        ponto: o ponto, como (x, y, z).
+        a, b: dois pontos distintos da reta.
+
+    Retorna:
+        O pé da perpendicular, como (x, y, z).
+
+    Levanta:
+        ValueError: se a e b forem iguais.
+
+    Exemplo:
+        >>> pe_da_perpendicular_a_reta((1, 3, 0), (0, 0, 0), (2, 0, 0))
+        (1.0, 0.0, 0.0)
+    """
+    p, pa, pb = _como_vetor(ponto), _como_vetor(a), _como_vetor(b)
+    direcao = pb - pa
+    if np.linalg.norm(direcao) < TOLERANCIA:
+        raise ValueError(
+            "Os dois pontos são iguais: é preciso dois pontos distintos para "
+            "determinar uma reta."
+        )
+
+    # Andamos sobre a reta (a + t·direcao) até o ponto em que o segmento que vai
+    # até `ponto` forma 90° com a reta. Esse t é a "sombra" de a→ponto sobre a reta.
+    t = np.dot(p - pa, direcao) / np.dot(direcao, direcao)
+    x, y, z = pa + t * direcao
+    return float(x), float(y), float(z)
+
+
+def plano_perpendicular_a_reta(a: Vetor3D, b: Vetor3D, ponto: Vetor3D) -> Plano:
+    """Devolve o plano que passa por `ponto` e é perpendicular à reta ab.
+
+    Pela propriedade 1 do notebook 03, esse plano é único. Esta função não desenha
+    nada, e as contas internas usam vetores, assunto do módulo 07 (Geometria
+    Analítica).
+
+    Parâmetros:
+        a, b: dois pontos distintos da reta.
+        ponto: o ponto por onde o plano passa, como (x, y, z).
+
+    Retorna:
+        Uma tupla (ponto, normal). O ponto devolvido é o próprio `ponto`.
+
+    Levanta:
+        ValueError: se a e b forem iguais.
+
+    Exemplo:
+        >>> v = vertices_do_cubo()
+        >>> pi = plano_perpendicular_a_reta(v["A"], v["B"], v["A"])
+    """
+    pa, pb = _como_vetor(a), _como_vetor(b)
+    direcao = pb - pa
+    if np.linalg.norm(direcao) < TOLERANCIA:
+        raise ValueError(
+            "Os dois pontos são iguais: é preciso dois pontos distintos para "
+            "determinar uma reta."
+        )
+    # Um plano perpendicular à reta tem a própria direção da reta como normal
+    # (como um mastro fincado no chão: o mastro é o normal do chão).
+    return _como_vetor(ponto), direcao
+
+
+def plano_perpendicular_por_reta(a: Vetor3D, b: Vetor3D, plano: Plano) -> Plano:
+    """Devolve o plano que contém a reta ab e é perpendicular a `plano`.
+
+    Pela propriedade 3 da seção 5 do notebook 03, esse plano é único quando a reta
+    não é perpendicular ao plano dado. Esta função não desenha nada, e as contas
+    internas usam vetores, assunto do módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        a, b: dois pontos distintos da reta que fica contida no plano procurado.
+        plano: o plano dado, como (ponto, normal).
+
+    Retorna:
+        Uma tupla (ponto, normal). O ponto devolvido é o ponto médio de ab.
+
+    Levanta:
+        ValueError: se a e b forem iguais, ou se a reta ab for perpendicular ao
+            plano dado.
+
+    Exemplo:
+        >>> v = vertices_do_cubo()
+        >>> base = plano_por_tres_pontos(v["A"], v["B"], v["C"])
+        >>> pi = plano_perpendicular_por_reta(v["A"], v["G"], base)
+    """
+    pa, pb = _como_vetor(a), _como_vetor(b)
+    normal_dado = _como_vetor(plano[1])
+    direcao = pb - pa
+    if np.linalg.norm(direcao) < TOLERANCIA:
+        raise ValueError(
+            "Os dois pontos são iguais: é preciso dois pontos distintos para "
+            "determinar uma reta."
+        )
+
+    # O plano procurado contém a direção da reta e a direção do normal do plano
+    # dado (é ela que o deixa "em pé" sobre o plano dado). O seu normal é
+    # perpendicular a essas duas direções. Se a reta já tem a direção do normal,
+    # o produto vetorial dá zero: qualquer plano do feixe por ab serviria.
+    normal = np.cross(direcao, normal_dado)
+    escala = np.linalg.norm(direcao) * np.linalg.norm(normal_dado)
+    if np.linalg.norm(normal) <= TOLERANCIA * escala:
+        raise ValueError(
+            "A reta é perpendicular ao plano: existem infinitos planos que a contêm "
+            "e são perpendiculares a ele."
+        )
+    return (pa + pb) / 2, normal
+
+
 # --- Desenhos ---
 def desenhar_ponto(
     fig: go.Figure,
@@ -640,6 +793,62 @@ def desenhar_paralela_por_ponto(
     )
 
 
+def desenhar_perpendicular_ao_plano(
+    fig: go.Figure,
+    plano: Plano,
+    ponto: Vetor3D,
+    rotulo: str | None = None,
+    cor: str | None = None,
+    comprimento: float = 6,
+    espessura: float = 4,
+    tracejado: bool = False,
+    marcar_angulo_reto: bool = True,
+) -> go.Figure:
+    """Desenha a reta que passa por `ponto` e é perpendicular ao plano.
+
+    Pela propriedade 2 do notebook 03, essa reta é única. O trecho desenhado fica
+    centrado no pé da perpendicular (o ponto onde a reta encontra o plano).
+
+    Parâmetros:
+        fig: a figura.
+        plano: o plano, como (ponto, normal).
+        ponto: o ponto por onde a perpendicular passa, como (x, y, z). Pode estar
+            dentro ou fora do plano.
+        rotulo: nome da reta (opcional).
+        cor: cor da reta. Se não for informada, usa CORES["reta"].
+        comprimento: tamanho do trecho desenhado.
+        espessura: espessura da linha.
+        tracejado: se True, desenha a linha tracejada.
+        marcar_angulo_reto: se True, desenha o quadradinho de ângulo reto no pé,
+            entre a reta e uma direção qualquer do plano.
+
+    Retorna:
+        A mesma figura, com a perpendicular desenhada.
+
+    Exemplo:
+        >>> chao = ((0, 0, 0), (0, 0, 1))
+        >>> fig = desenhar_perpendicular_ao_plano(fig, chao, (1, 1, 3), rotulo="r")
+    """
+    p = _como_vetor(ponto)
+    pe = np.array(pe_da_perpendicular_ao_plano(p, plano))
+
+    # A perpendicular tem a direção do normal. Escolhemos o sentido que vai do pé
+    # até o ponto, para que o rótulo e o quadradinho fiquem do lado do ponto.
+    direcao = _normalizar(plano[1])
+    if np.dot(p - pe, direcao) < 0:
+        direcao = -direcao
+
+    fig = desenhar_reta(
+        fig, pe, direcao, rotulo=rotulo, cor=cor, comprimento=comprimento,
+        espessura=espessura, tracejado=tracejado,
+    )
+    if marcar_angulo_reto:
+        # Qualquer direção do plano serve: a perpendicular forma 90° com todas.
+        u, _ = _base_do_plano(direcao)
+        fig = desenhar_angulo_reto(fig, pe, pe + u, pe + direcao, cor=cor)
+    return fig
+
+
 def desenhar_plano(
     fig: go.Figure,
     ponto: Vetor3D,
@@ -818,6 +1027,93 @@ def desenhar_plano_paralelo_a_reta(
     ponto, normal = plano_paralelo_a_reta(a1, a2, b1, b2)
     return desenhar_plano(
         fig, ponto, normal, rotulo=rotulo, cor=cor, opacidade=opacidade,
+        tamanho=tamanho, mostrar_borda=mostrar_borda,
+    )
+
+
+def desenhar_plano_perpendicular_a_reta(
+    fig: go.Figure,
+    a: Vetor3D,
+    b: Vetor3D,
+    ponto: Vetor3D,
+    rotulo: str | None = None,
+    cor: str | None = None,
+    opacidade: float = 0.35,
+    tamanho: float = 6,
+    mostrar_borda: bool = True,
+) -> go.Figure:
+    """Desenha o plano que passa por `ponto` e é perpendicular à reta ab.
+
+    O pedaço desenhado fica centrado em `ponto`. Para obter o plano como dado, sem
+    desenhar, use `plano_perpendicular_a_reta`.
+
+    Parâmetros:
+        fig: a figura.
+        a, b: dois pontos distintos da reta.
+        ponto: o ponto por onde o plano passa, como (x, y, z).
+        rotulo: nome do plano (opcional).
+        cor: cor do plano. Se não for informada, usa CORES["plano"].
+        opacidade: de 0 (invisível) a 1 (totalmente opaco).
+        tamanho: lado do quadrado desenhado.
+        mostrar_borda: se True, desenha o contorno do quadrado.
+
+    Retorna:
+        A mesma figura, com o plano desenhado.
+
+    Levanta:
+        ValueError: se a e b forem iguais.
+
+    Exemplo:
+        >>> v = vertices_do_cubo()
+        >>> fig = desenhar_plano_perpendicular_a_reta(fig, v["A"], v["B"], v["B"])
+    """
+    ponto_do_plano, normal = plano_perpendicular_a_reta(a, b, ponto)
+    return desenhar_plano(
+        fig, ponto_do_plano, normal, rotulo=rotulo, cor=cor, opacidade=opacidade,
+        tamanho=tamanho, mostrar_borda=mostrar_borda,
+    )
+
+
+def desenhar_plano_perpendicular_por_reta(
+    fig: go.Figure,
+    a: Vetor3D,
+    b: Vetor3D,
+    plano: Plano,
+    rotulo: str | None = None,
+    cor: str | None = None,
+    opacidade: float = 0.35,
+    tamanho: float = 6,
+    mostrar_borda: bool = True,
+) -> go.Figure:
+    """Desenha o plano que contém a reta ab e é perpendicular a `plano`.
+
+    O pedaço desenhado fica centrado no ponto médio de ab. Para obter o plano como
+    dado, sem desenhar, use `plano_perpendicular_por_reta`.
+
+    Parâmetros:
+        fig: a figura.
+        a, b: dois pontos distintos da reta contida no plano desenhado.
+        plano: o plano dado, como (ponto, normal).
+        rotulo: nome do plano (opcional).
+        cor: cor do plano. Se não for informada, usa CORES["plano"].
+        opacidade: de 0 (invisível) a 1 (totalmente opaco).
+        tamanho: lado do quadrado desenhado.
+        mostrar_borda: se True, desenha o contorno do quadrado.
+
+    Retorna:
+        A mesma figura, com o plano desenhado.
+
+    Levanta:
+        ValueError: se a e b forem iguais, ou se a reta ab for perpendicular ao
+            plano dado.
+
+    Exemplo:
+        >>> chao = ((0, 0, 0), (0, 0, 1))
+        >>> fig = desenhar_plano_perpendicular_por_reta(fig, (0, 0, 0), (1, 0, 1), chao)
+    """
+    ponto_do_plano, normal = plano_perpendicular_por_reta(a, b, plano)
+    return desenhar_plano(
+        fig, ponto_do_plano, normal, rotulo=rotulo, cor=cor, opacidade=opacidade,
         tamanho=tamanho, mostrar_borda=mostrar_borda,
     )
 
@@ -1455,3 +1751,66 @@ def medir_angulo_entre_retas(
     # direções; o clip protege o arco-cosseno de erros de arredondamento.
     cosseno = min(abs(float(np.dot(u, w))), 1.0)
     return float(np.degrees(np.arccos(cosseno)))
+
+
+def reta_perpendicular_ao_plano(a: Vetor3D, b: Vetor3D, plano: Plano) -> bool:
+    """Diz se a reta ab é perpendicular ao plano.
+
+    Esta função usa vetores, assunto do módulo 07 (Geometria Analítica). Aqui ela
+    serve apenas para conferir a sua resposta.
+
+    Parâmetros:
+        a, b: dois pontos distintos da reta.
+        plano: o plano, como (ponto, normal).
+
+    Retorna:
+        True se a reta for perpendicular ao plano; False caso contrário (reta
+        oblíqua, paralela ou contida no plano).
+
+    Levanta:
+        ValueError: se a e b forem iguais.
+
+    Exemplo:
+        >>> v = vertices_do_cubo()
+        >>> base = plano_por_tres_pontos(v["A"], v["B"], v["C"])
+        >>> reta_perpendicular_ao_plano(v["A"], v["E"], base)
+        True
+    """
+    direcao = _como_vetor(b) - _como_vetor(a)
+    normal = _como_vetor(plano[1])
+    if np.linalg.norm(direcao) < TOLERANCIA:
+        raise ValueError(
+            "Os dois pontos são iguais: é preciso dois pontos distintos para "
+            "determinar uma reta."
+        )
+    # A reta é perpendicular ao plano quando tem a mesma direção do normal:
+    # nesse caso, o produto vetorial da direção com o normal dá (quase) zero.
+    produto = np.linalg.norm(np.cross(direcao, normal))
+    escala = np.linalg.norm(direcao) * np.linalg.norm(normal)
+    return bool(produto <= TOLERANCIA * escala)
+
+
+def planos_sao_perpendiculares(plano1: Plano, plano2: Plano) -> bool:
+    """Diz se dois planos são perpendiculares.
+
+    Esta função usa vetores, assunto do módulo 07 (Geometria Analítica). Aqui ela
+    serve apenas para conferir a sua resposta.
+
+    Parâmetros:
+        plano1: o primeiro plano, como (ponto, normal).
+        plano2: o segundo plano, como (ponto, normal).
+
+    Retorna:
+        True se os planos forem perpendiculares; False caso contrário.
+
+    Exemplo:
+        >>> planos_sao_perpendiculares(((0, 0, 0), (0, 0, 1)), ((0, 0, 0), (1, 0, 0)))
+        True
+    """
+    n1 = _como_vetor(plano1[1])
+    n2 = _como_vetor(plano2[1])
+    # Dois planos são perpendiculares quando os seus normais formam 90°: o normal
+    # de um é uma reta "deitada" no outro. O produto escalar mede isso: é zero
+    # exatamente quando os dois vetores formam ângulo reto.
+    produto = abs(np.dot(n1, n2))
+    return bool(produto <= TOLERANCIA * np.linalg.norm(n1) * np.linalg.norm(n2))
