@@ -38,6 +38,10 @@ v3 — notebook 03: construtores de perpendicularidade (pé da perpendicular ao 
      à reta, plano perpendicular a uma reta, plano perpendicular a outro por uma
      reta), desenhos correspondentes e conferências de reta perpendicular a plano e
      de planos perpendiculares
+v4 — notebook 04: polígono, circunferência, esfera, nuvem de pontos, projeção ortogonal
+     de figuras, perpendicular comum, plano mediador, planos bissetores, distâncias de
+     ponto a plano e entre retas, ângulo entre reta e plano; medir_distancia passa a
+     aceitar vários pontos de uma vez
 """
 
 # ==================================================================================
@@ -397,6 +401,9 @@ def pe_da_perpendicular_ao_plano(
     ponto. Esta função não desenha nada, e as contas internas usam vetores, assunto
     do módulo 07 (Geometria Analítica).
 
+    O pé da perpendicular é também a projeção ortogonal do ponto sobre o plano
+    (notebook 04).
+
     Parâmetros:
         ponto: o ponto, como (x, y, z).
         plano: o plano, como (ponto, normal).
@@ -534,6 +541,126 @@ def plano_perpendicular_por_reta(a: Vetor3D, b: Vetor3D, plano: Plano) -> Plano:
             "e são perpendiculares a ele."
         )
     return (pa + pb) / 2, normal
+
+
+def perpendicular_comum(
+    a1: Vetor3D, a2: Vetor3D, b1: Vetor3D, b2: Vetor3D
+) -> tuple[tuple[float, float, float], tuple[float, float, float]]:
+    """Devolve os pés da perpendicular comum às retas reversas a1a2 e b1b2.
+
+    A perpendicular comum é a única reta que corta as duas retas reversas e forma
+    90° com ambas (notebook 04). O segmento entre os dois pés mede a distância entre
+    as retas. Esta função não desenha nada, e as contas internas usam vetores,
+    assunto do módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        a1, a2: dois pontos distintos da reta r.
+        b1, b2: dois pontos distintos da reta s.
+
+    Retorna:
+        Uma tupla (p, q): p é o pé na reta r e q é o pé na reta s, cada um como
+        (x, y, z).
+
+    Levanta:
+        ValueError: se as retas não forem reversas.
+
+    Exemplo:
+        >>> v = vertices_do_cubo()
+        >>> p, q = perpendicular_comum(v["A"], v["B"], v["C"], v["G"])
+        >>> p, q
+        ((2.0, 0.0, 0.0), (2.0, 2.0, 0.0))
+    """
+    if classificar_posicao_retas(a1, a2, b1, b2) != "reversas":
+        raise ValueError(
+            "As retas não são reversas: a perpendicular comum só é definida (e única) "
+            "para retas reversas."
+        )
+    pa1, pa2 = _como_vetor(a1), _como_vetor(a2)
+    pb1, pb2 = _como_vetor(b1), _como_vetor(b2)
+    u = pa2 - pa1  # direção de r
+    v = pb2 - pb1  # direção de s
+    w = pa1 - pb1  # vai de um ponto de s até um ponto de r
+
+    # Procuramos p = a1 + t·u em r e q = b1 + k·v em s tais que o segmento pq forme
+    # 90° com u e com v. Isso dá duas equações (produtos escalares iguais a zero)
+    # com duas incógnitas, t e k, resolvidas pela regra de Cramer.
+    uu, uv, vv = np.dot(u, u), np.dot(u, v), np.dot(v, v)
+    uw, vw = np.dot(u, w), np.dot(v, w)
+    determinante = uu * vv - uv**2  # não é zero, porque as retas não são paralelas
+    t = (uv * vw - vv * uw) / determinante
+    k = (uu * vw - uv * uw) / determinante
+
+    px, py, pz = pa1 + t * u
+    qx, qy, qz = pb1 + k * v
+    return (float(px), float(py), float(pz)), (float(qx), float(qy), float(qz))
+
+
+def plano_mediador(a: Vetor3D, b: Vetor3D) -> Plano:
+    """Devolve o plano mediador do segmento ab.
+
+    O plano mediador é o plano perpendicular a ab que passa pelo seu ponto médio.
+    É o lugar geométrico dos pontos equidistantes de a e de b (notebook 04), a
+    versão espacial da mediatriz. Esta função não desenha nada, e as contas
+    internas usam vetores, assunto do módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        a, b: as extremidades do segmento, cada uma como (x, y, z).
+
+    Retorna:
+        Uma tupla (ponto, normal). O ponto devolvido é o ponto médio de ab.
+
+    Levanta:
+        ValueError: se a e b forem iguais.
+
+    Exemplo:
+        >>> plano_mediador((0, 0, 0), (2, 0, 0))[0]
+        array([1., 0., 0.])
+    """
+    pa, pb = _como_vetor(a), _como_vetor(b)
+    if np.linalg.norm(pb - pa) < TOLERANCIA:
+        raise ValueError("Os dois pontos são iguais: não existe plano mediador.")
+    # O próprio segmento ab dá a direção do normal (o plano é perpendicular a ele).
+    return (pa + pb) / 2, pb - pa
+
+
+def planos_bissetores(plano1: Plano, plano2: Plano) -> tuple[Plano, Plano]:
+    """Devolve os dois planos bissetores de dois planos secantes.
+
+    Os planos bissetores são formados pelos pontos equidistantes dos dois planos
+    dados. Eles contêm a reta de interseção dos planos dados e são perpendiculares
+    entre si (notebook 04). Esta função não desenha nada, e as contas internas usam
+    vetores, assunto do módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        plano1: o primeiro plano, como (ponto, normal).
+        plano2: o segundo plano, como (ponto, normal).
+
+    Retorna:
+        Uma tupla (bissetor1, bissetor2), cada um como (ponto, normal). O ponto
+        devolvido é um ponto da reta de interseção dos planos dados.
+
+    Levanta:
+        ValueError: se os planos não forem secantes.
+
+    Exemplo:
+        >>> chao = ((0, 0, 0), (0, 0, 1))
+        >>> parede = ((0, 0, 0), (0, 1, 0))
+        >>> bissetor1, bissetor2 = planos_bissetores(chao, parede)
+    """
+    reta = _intersecao_de_planos(plano1, plano2)
+    if reta is None:
+        raise ValueError(
+            "Os planos não são secantes: os planos bissetores só existem para planos "
+            "que se cortam."
+        )
+    ponto, _ = reta
+
+    # Com os normais de comprimento 1, a soma e a diferença deles apontam nas
+    # direções que "dividem ao meio" os ângulos entre os planos (como as diagonais
+    # de um losango). São os normais dos dois bissetores.
+    n1 = _normalizar(plano1[1])
+    n2 = _normalizar(plano2[1])
+    return (ponto, n1 + n2), (ponto.copy(), n1 - n2)
 
 
 # --- Desenhos ---
@@ -1199,6 +1326,321 @@ def desenhar_intersecao_reta_plano(
     )
 
 
+def desenhar_poligono(
+    fig: go.Figure,
+    vertices: Sequence[Vetor3D],
+    rotulo: str | None = None,
+    cor: str | None = None,
+    opacidade: float = 0.4,
+    mostrar_borda: bool = True,
+) -> go.Figure:
+    """Desenha um polígono plano e convexo, preenchido e com borda.
+
+    A função supõe que todos os vértices estão num mesmo plano e que o polígono é
+    convexo (sem "dentes"), como um triângulo, um quadrado ou um hexágono regular.
+    Os vértices devem vir na ordem em que aparecem ao percorrer o contorno.
+
+    Parâmetros:
+        fig: a figura.
+        vertices: lista de vértices, cada um como (x, y, z), na ordem do contorno.
+        rotulo: nome do polígono, escrito no centro dele (opcional).
+        cor: cor do polígono. Se não for informada, usa CORES["solido"].
+        opacidade: de 0 (invisível) a 1 (totalmente opaco).
+        mostrar_borda: se True, desenha o contorno do polígono.
+
+    Retorna:
+        A mesma figura, com o polígono desenhado.
+
+    Levanta:
+        ValueError: se houver menos de 3 vértices.
+
+    Exemplo:
+        >>> fig = desenhar_poligono(fig, [(0, 0, 0), (2, 0, 0), (0, 2, 0)], "ABC")
+    """
+    if len(vertices) < 3:
+        raise ValueError("Um polígono precisa de pelo menos 3 vértices.")
+    pontos = np.array([_como_vetor(v) for v in vertices])
+    cor = cor or CORES["solido"]
+    quantidade = len(pontos)
+
+    # Triangulação "em leque": ligamos o primeiro vértice a cada par de vértices
+    # vizinhos seguintes. Num polígono convexo, isso cobre tudo sem sobrar buraco:
+    # (0, 1, 2), (0, 2, 3), (0, 3, 4), ...
+    fig.add_trace(
+        go.Mesh3d(
+            x=pontos[:, 0], y=pontos[:, 1], z=pontos[:, 2],
+            i=[0] * (quantidade - 2),
+            j=list(range(1, quantidade - 1)),
+            k=list(range(2, quantidade)),
+            color=cor,
+            opacity=opacidade,
+            lighting=dict(ambient=1, diffuse=0, specular=0, fresnel=0),
+            hoverinfo="skip",
+        )
+    )
+
+    if mostrar_borda:
+        # Repetimos o primeiro vértice no fim para fechar o contorno.
+        contorno = np.vstack([pontos, pontos[:1]])
+        fig.add_trace(
+            go.Scatter3d(
+                x=contorno[:, 0], y=contorno[:, 1], z=contorno[:, 2],
+                mode="lines",
+                line=dict(color=cor, width=3),
+                hoverinfo="skip",
+            )
+        )
+
+    if rotulo:
+        # O centroide (a média dos vértices) fica dentro de um polígono convexo.
+        fig = adicionar_rotulo(fig, pontos.mean(axis=0), rotulo, cor=cor)
+    return fig
+
+
+def desenhar_circunferencia(
+    fig: go.Figure,
+    centro: Vetor3D,
+    raio: float,
+    normal: Vetor3D = (0, 0, 1),
+    rotulo: str | None = None,
+    cor: str | None = None,
+    espessura: float = 3,
+    tracejado: bool = False,
+    resolucao: int = 80,
+) -> go.Figure:
+    """Desenha uma circunferência no espaço.
+
+    A circunferência fica no plano que passa por `centro` e tem o vetor `normal`
+    como perpendicular. Com o normal padrão (0, 0, 1), ela fica "deitada", num
+    plano horizontal.
+
+    Parâmetros:
+        fig: a figura.
+        centro: o centro da circunferência, como (x, y, z).
+        raio: o raio.
+        normal: vetor perpendicular ao plano da circunferência.
+        rotulo: nome da circunferência, escrito junto dela (opcional).
+        cor: cor da linha. Se não for informada, usa CORES["reta"].
+        espessura: espessura da linha.
+        tracejado: se True, desenha a linha tracejada.
+        resolucao: quantidade de pontos usados para desenhar a curva (mais pontos,
+            curva mais lisa).
+
+    Retorna:
+        A mesma figura, com a circunferência desenhada.
+
+    Exemplo:
+        >>> fig = desenhar_circunferencia(fig, (0, 0, 0), 2, rotulo="λ")
+    """
+    c = _como_vetor(centro)
+    u, v = _base_do_plano(normal)
+    cor = cor or CORES["reta"]
+
+    # Seno e cosseno dão os pontos da circunferência: andamos raio·cos(t) na
+    # direção u e raio·sen(t) na direção v, com t dando uma volta completa.
+    angulos = np.linspace(0, 2 * np.pi, resolucao + 1)
+    curva = np.array([c + raio * (np.cos(t) * u + np.sin(t) * v) for t in angulos])
+    fig.add_trace(
+        go.Scatter3d(
+            x=curva[:, 0], y=curva[:, 1], z=curva[:, 2],
+            mode="lines",
+            line=dict(
+                color=cor, width=espessura, dash="dash" if tracejado else "solid"
+            ),
+            hoverinfo="skip",
+        )
+    )
+    if rotulo:
+        # O nome fica um pouco para fora da curva, na direção u.
+        fig = adicionar_rotulo(fig, c + 1.12 * raio * u, rotulo, cor=cor)
+    return fig
+
+
+def desenhar_nuvem_de_pontos(
+    fig: go.Figure,
+    pontos: Sequence[Vetor3D] | np.ndarray,
+    cor: str | None = None,
+    tamanho: float = 2,
+    opacidade: float = 0.6,
+) -> go.Figure:
+    """Desenha muitos pontos de uma vez, sem rótulos.
+
+    Diferente de `desenhar_pontos`, que cria um desenho para cada ponto, esta
+    função junta todos os pontos num único desenho. Assim ela continua rápida mesmo
+    com milhares de pontos (por exemplo, pontos sorteados ao acaso).
+
+    Parâmetros:
+        fig: a figura.
+        pontos: lista de pontos (x, y, z) ou array do NumPy de formato (N, 3).
+        cor: cor dos pontos. Se não for informada, usa CORES["ponto"].
+        tamanho: tamanho dos marcadores.
+        opacidade: de 0 (invisível) a 1 (totalmente opaco).
+
+    Retorna:
+        A mesma figura, com os pontos desenhados. Se a lista estiver vazia, a
+        figura volta sem alterações.
+
+    Exemplo:
+        >>> sorteados = np.random.default_rng(1).uniform(-1, 1, size=(500, 3))
+        >>> fig = desenhar_nuvem_de_pontos(fig, sorteados)
+    """
+    if len(pontos) == 0:
+        return fig
+    nuvem = np.asarray(pontos, dtype=float)
+    if nuvem.ndim != 2 or nuvem.shape[1] != 3:
+        raise ValueError(
+            "Esperava uma lista de pontos (x, y, z) ou um array de formato (N, 3)."
+        )
+    fig.add_trace(
+        go.Scatter3d(
+            x=nuvem[:, 0], y=nuvem[:, 1], z=nuvem[:, 2],
+            mode="markers",
+            marker=dict(
+                size=tamanho, color=cor or CORES["ponto"], opacity=opacidade
+            ),
+            hoverinfo="skip",
+        )
+    )
+    return fig
+
+
+def desenhar_projecao_ortogonal(
+    fig: go.Figure,
+    pontos: Sequence[Vetor3D],
+    plano: Plano,
+    rotulos: Sequence[str] | None = None,
+    cor: str | None = None,
+    ligar_pontos: bool = True,
+    fechar: bool = False,
+    preencher: bool = False,
+    mostrar_projetantes: bool = True,
+    tamanho: float = 5,
+) -> go.Figure:
+    """Desenha a projeção ortogonal de uma figura sobre um plano.
+
+    Cada ponto é projetado no pé da sua perpendicular ao plano (veja
+    `pe_da_perpendicular_ao_plano`). Ligando as projeções na ordem dada, obtemos a
+    projeção de um segmento, de uma linha poligonal ou de um polígono.
+
+    Parâmetros:
+        fig: a figura.
+        pontos: os pontos da figura, cada um como (x, y, z), na ordem do contorno.
+        plano: o plano de projeção, como (ponto, normal).
+        rotulos: nomes dos pontos projetados, na mesma ordem (opcional), por
+            exemplo ["A'", "B'"].
+        cor: cor da projeção. Se não for informada, usa CORES["destaque"].
+        ligar_pontos: se True, liga os pontos projetados em sequência.
+        fechar: se True (com ligar_pontos=True), liga também o último ao primeiro.
+        preencher: se True, pinta o polígono projetado (exige fechar=True).
+        mostrar_projetantes: se True, desenha tracejados os segmentos que vão de
+            cada ponto até a sua projeção.
+        tamanho: tamanho dos marcadores dos pontos projetados.
+
+    Retorna:
+        A mesma figura, com a projeção desenhada.
+
+    Levanta:
+        ValueError: se preencher=True sem fechar=True, ou se a lista de rótulos não
+            tiver um nome para cada ponto.
+
+    Exemplo:
+        >>> chao = ((0, 0, 0), (0, 0, 1))
+        >>> fig = desenhar_projecao_ortogonal(
+        ...     fig, [(0, 0, 1), (2, 1, 2)], chao, rotulos=["A'", "B'"]
+        ... )
+    """
+    if preencher and not fechar:
+        raise ValueError(
+            "Para preencher a projeção, ela precisa ser um polígono: use fechar=True."
+        )
+    cor = cor or CORES["destaque"]
+    originais = [_como_vetor(p) for p in pontos]
+    projetados = [np.array(pe_da_perpendicular_ao_plano(p, plano)) for p in originais]
+
+    if mostrar_projetantes:
+        for original, projetado in zip(originais, projetados, strict=True):
+            # Um ponto que já está no plano é a sua própria projeção: não há
+            # projetante para desenhar.
+            if np.linalg.norm(original - projetado) > TOLERANCIA:
+                fig = desenhar_segmento(
+                    fig, original, projetado, cor=CORES["apoio"], espessura=2,
+                    tracejado=True,
+                )
+
+    if preencher:
+        fig = desenhar_poligono(
+            fig, projetados, cor=cor, opacidade=0.3, mostrar_borda=False
+        )
+
+    if ligar_pontos and len(projetados) >= 2:
+        # Liga cada ponto ao seguinte; com fechar=True, o último volta ao primeiro.
+        pares = [
+            (projetados[i], projetados[i + 1]) for i in range(len(projetados) - 1)
+        ]
+        if fechar and len(projetados) >= 3:
+            pares.append((projetados[-1], projetados[0]))
+        for inicio, fim in pares:
+            fig = desenhar_segmento(fig, inicio, fim, cor=cor, espessura=4)
+
+    return desenhar_pontos(fig, projetados, rotulos=rotulos, cor=cor, tamanho=tamanho)
+
+
+def desenhar_perpendicular_comum(
+    fig: go.Figure,
+    a1: Vetor3D,
+    a2: Vetor3D,
+    b1: Vetor3D,
+    b2: Vetor3D,
+    rotulo: str | None = None,
+    cor: str | None = None,
+    espessura: float = 6,
+    marcar_angulos_retos: bool = True,
+    mostrar_pes: bool = True,
+) -> go.Figure:
+    """Desenha o segmento da perpendicular comum às retas reversas a1a2 e b1b2.
+
+    O segmento liga o pé p, na reta r = a1a2, ao pé q, na reta s = b1b2, e o seu
+    comprimento é a distância entre as retas (veja `perpendicular_comum`).
+
+    Parâmetros:
+        fig: a figura.
+        a1, a2: dois pontos distintos da reta r.
+        b1, b2: dois pontos distintos da reta s.
+        rotulo: nome do segmento, escrito no ponto médio (opcional).
+        cor: cor do segmento. Se não for informada, usa CORES["destaque"].
+        espessura: espessura da linha.
+        marcar_angulos_retos: se True, desenha os quadradinhos de ângulo reto nas
+            duas pontas.
+        mostrar_pes: se True, marca os pés da perpendicular comum.
+
+    Retorna:
+        A mesma figura, com a perpendicular comum desenhada.
+
+    Levanta:
+        ValueError: se as retas não forem reversas.
+
+    Exemplo:
+        >>> v = vertices_do_cubo()
+        >>> fig = desenhar_perpendicular_comum(fig, v["A"], v["G"], v["B"], v["F"])
+    """
+    p, q = perpendicular_comum(a1, a2, b1, b2)
+    p, q = np.array(p), np.array(q)
+    cor = cor or CORES["destaque"]
+    fig = desenhar_segmento(fig, p, q, rotulo=rotulo, cor=cor, espessura=espessura)
+
+    if marcar_angulos_retos:
+        # Em cada ponta, o quadradinho fica entre o segmento pq e a reta daquela ponta.
+        # O tamanho acompanha o comprimento do segmento, para caber no desenho.
+        u = _normalizar(_como_vetor(a2) - _como_vetor(a1))
+        v = _normalizar(_como_vetor(b2) - _como_vetor(b1))
+        lado = min(0.3, 0.25 * np.linalg.norm(q - p))
+        fig = desenhar_angulo_reto(fig, p, p + u, q, cor=cor, tamanho=lado)
+        fig = desenhar_angulo_reto(fig, q, q + v, p, cor=cor, tamanho=lado)
+    if mostrar_pes:
+        fig = desenhar_pontos(fig, [p, q], cor=cor, tamanho=5)
+    return fig
+
+
 def desenhar_angulo(
     fig: go.Figure,
     vertice: Vetor3D,
@@ -1541,6 +1983,66 @@ def desenhar_cubo(
     return fig
 
 
+def desenhar_esfera(
+    fig: go.Figure,
+    centro: Vetor3D,
+    raio: float,
+    rotulo: str | None = None,
+    cor: str | None = None,
+    opacidade: float = 0.25,
+    resolucao: int = 40,
+) -> go.Figure:
+    """Desenha uma superfície esférica semitransparente.
+
+    A superfície esférica é o conjunto dos pontos do espaço que estão a uma mesma
+    distância (o raio) do centro (notebook 04). O estudo completo da esfera fica
+    para o notebook 13.
+
+    Parâmetros:
+        fig: a figura.
+        centro: o centro da esfera, como (x, y, z).
+        raio: o raio.
+        rotulo: nome da esfera, escrito acima dela (opcional).
+        cor: cor da superfície. Se não for informada, usa CORES["solido"].
+        opacidade: de 0 (invisível) a 1 (totalmente opaca).
+        resolucao: quantidade de divisões usadas no desenho (mais divisões,
+            superfície mais lisa).
+
+    Retorna:
+        A mesma figura, com a esfera desenhada.
+
+    Exemplo:
+        >>> fig = desenhar_esfera(fig, (0, 0, 0), 2, rotulo="esfera")
+    """
+    c = _como_vetor(centro)
+    cor = cor or CORES["solido"]
+
+    # Como num globo terrestre, cada ponto da esfera é dado por uma "longitude"
+    # (giro em volta do eixo vertical) e uma "latitude" (do polo sul ao polo norte).
+    # Seno e cosseno transformam esses dois ângulos em posições no espaço.
+    longitude, latitude = np.meshgrid(
+        np.linspace(0, 2 * np.pi, resolucao + 1),
+        np.linspace(-np.pi / 2, np.pi / 2, resolucao // 2 + 1),
+    )
+    x = c[0] + raio * np.cos(latitude) * np.cos(longitude)
+    y = c[1] + raio * np.cos(latitude) * np.sin(longitude)
+    z = c[2] + raio * np.sin(latitude)
+    fig.add_trace(
+        go.Surface(
+            x=x, y=y, z=z,
+            # Uma escala de cores com uma cor só: a esfera fica toda da mesma cor.
+            colorscale=[[0, cor], [1, cor]],
+            showscale=False,
+            opacity=opacidade,
+            lighting=dict(ambient=0.8, diffuse=0.3, specular=0.05, fresnel=0),
+            hoverinfo="skip",
+        )
+    )
+    if rotulo:
+        fig = adicionar_rotulo(fig, c + np.array([0, 0, 1.15 * raio]), rotulo, cor=cor)
+    return fig
+
+
 # ==================================================================================
 # Funções de conferência
 # ==================================================================================
@@ -1699,24 +2201,37 @@ def classificar_posicao_planos(plano1: Plano, plano2: Plano) -> str:
     return "paralelos"
 
 
-def medir_distancia(p: Vetor3D, q: Vetor3D) -> float:
+def medir_distancia(p: Vetor3D | np.ndarray, q: Vetor3D) -> float | np.ndarray:
     """Mede a distância entre dois pontos: é a nossa trena.
 
     Esta função usa vetores, assunto do módulo 07 (Geometria Analítica). Aqui ela
     serve apenas para conferir a sua resposta. A fórmula da distância entre dois
     pontos com coordenadas (uma "Pitágoras em 3D") aparece no módulo 07.
 
+    Também mede de uma vez as distâncias de muitos pontos até um mesmo ponto q:
+    basta passar em p um array do NumPy de formato (N, 3).
+
     Parâmetros:
-        p, q: os dois pontos, cada um como (x, y, z).
+        p: um ponto, como (x, y, z), ou um array de formato (N, 3) com N pontos.
+        q: o outro ponto, como (x, y, z).
 
     Retorna:
-        A distância entre p e q.
+        A distância entre p e q (um número) ou, se p tiver N pontos, um array com
+        as N distâncias.
 
     Exemplo:
         >>> v = vertices_do_cubo()
         >>> round(medir_distancia(v["A"], v["G"]), 4)
         3.4641
+        >>> medir_distancia(np.array([v["A"], v["G"]]), v["A"]).round(4)
+        array([0.    , 3.4641])
     """
+    varios = np.asarray(p, dtype=float)
+    if varios.ndim == 2:
+        if varios.shape[1] != 3:
+            raise ValueError("Esperava um array de pontos de formato (N, 3).")
+        # Uma distância para cada linha do array (cada ponto).
+        return np.linalg.norm(varios - _como_vetor(q), axis=1)
     return float(np.linalg.norm(_como_vetor(q) - _como_vetor(p)))
 
 
@@ -1751,6 +2266,121 @@ def medir_angulo_entre_retas(
     # direções; o clip protege o arco-cosseno de erros de arredondamento.
     cosseno = min(abs(float(np.dot(u, w))), 1.0)
     return float(np.degrees(np.arccos(cosseno)))
+
+
+def medir_distancia_ponto_plano(
+    ponto: Vetor3D | np.ndarray, plano: Plano
+) -> float | np.ndarray:
+    """Mede a distância de um ponto a um plano.
+
+    É o comprimento do segmento perpendicular do ponto ao plano (notebook 04).
+    Também mede de uma vez as distâncias de muitos pontos: basta passar um array do
+    NumPy de formato (N, 3).
+
+    Esta função usa vetores, assunto do módulo 07 (Geometria Analítica). Aqui ela
+    serve apenas para conferir a sua resposta.
+
+    Parâmetros:
+        ponto: um ponto, como (x, y, z), ou um array de formato (N, 3) com N pontos.
+        plano: o plano, como (ponto, normal).
+
+    Retorna:
+        A distância (um número) ou, se forem N pontos, um array com as N distâncias.
+
+    Exemplo:
+        >>> v = vertices_do_cubo()
+        >>> base = plano_por_tres_pontos(v["A"], v["B"], v["C"])
+        >>> medir_distancia_ponto_plano(v["G"], base)
+        2.0
+    """
+    ponto_do_plano = _como_vetor(plano[0])
+    n = _normalizar(plano[1])
+    varios = np.asarray(ponto, dtype=float)
+    if varios.ndim == 2:
+        if varios.shape[1] != 3:
+            raise ValueError("Esperava um array de pontos de formato (N, 3).")
+        # A "altura" de cada ponto em relação ao plano, medida na direção do normal.
+        return np.abs((varios - ponto_do_plano) @ n)
+    return float(abs(np.dot(_como_vetor(ponto) - ponto_do_plano, n)))
+
+
+def medir_distancia_entre_retas(
+    a1: Vetor3D, a2: Vetor3D, b1: Vetor3D, b2: Vetor3D
+) -> float:
+    """Mede a distância entre as retas a1a2 e b1b2.
+
+    - Concorrentes ou coincidentes: a distância é 0.
+    - Paralelas: é a distância de qualquer ponto de uma até a outra.
+    - Reversas: é o comprimento do segmento da perpendicular comum (notebook 04).
+
+    Esta função usa vetores, assunto do módulo 07 (Geometria Analítica). Aqui ela
+    serve apenas para conferir a sua resposta.
+
+    Parâmetros:
+        a1, a2: dois pontos distintos da reta r.
+        b1, b2: dois pontos distintos da reta s.
+
+    Retorna:
+        A distância entre r e s.
+
+    Exemplo:
+        >>> v = vertices_do_cubo()
+        >>> medir_distancia_entre_retas(v["A"], v["B"], v["C"], v["G"])
+        2.0
+    """
+    posicao = classificar_posicao_retas(a1, a2, b1, b2)
+    if posicao in ("concorrentes", "coincidentes"):
+        return 0.0
+    if posicao == "paralelas":
+        # Retas paralelas: basta medir de um ponto de s até o pé da perpendicular
+        # traçada dele até r.
+        pe = pe_da_perpendicular_a_reta(b1, a1, a2)
+        return medir_distancia(b1, pe)
+    p, q = perpendicular_comum(a1, a2, b1, b2)
+    return medir_distancia(p, q)
+
+
+def medir_angulo_reta_plano(a: Vetor3D, b: Vetor3D, plano: Plano) -> float:
+    """Mede o ângulo entre a reta ab e um plano, em graus.
+
+    Segue a definição do notebook 04: 90° se a reta for perpendicular ao plano, 0°
+    se for paralela a ele ou estiver contida nele e, nos outros casos, o ângulo
+    entre a reta e a sua projeção ortogonal sobre o plano. O resultado está sempre
+    entre 0° e 90°.
+
+    Esta função usa vetores, assunto do módulo 07 (Geometria Analítica). Aqui ela
+    serve apenas para conferir a sua resposta.
+
+    Parâmetros:
+        a, b: dois pontos distintos da reta.
+        plano: o plano, como (ponto, normal).
+
+    Retorna:
+        O ângulo entre a reta e o plano, em graus.
+
+    Levanta:
+        ValueError: se a e b forem iguais.
+
+    Exemplo:
+        >>> v = vertices_do_cubo()
+        >>> base = plano_por_tres_pontos(v["A"], v["B"], v["C"])
+        >>> round(medir_angulo_reta_plano(v["A"], v["F"], base), 1)
+        45.0
+    """
+    direcao = _como_vetor(b) - _como_vetor(a)
+    if np.linalg.norm(direcao) < TOLERANCIA:
+        raise ValueError(
+            "Os dois pontos são iguais: é preciso dois pontos distintos para "
+            "determinar uma reta."
+        )
+    u = _normalizar(direcao)
+    n = _normalizar(plano[1])
+
+    # O ângulo com o normal e o ângulo com o plano são complementares: por isso o
+    # seno do ângulo com o plano é o cosseno do ângulo com o normal. O valor
+    # absoluto e o min protegem de sentidos invertidos e de arredondamentos.
+    seno = min(abs(float(np.dot(u, n))), 1.0)
+    return float(np.degrees(np.arcsin(seno)))
 
 
 def reta_perpendicular_ao_plano(a: Vetor3D, b: Vetor3D, plano: Plano) -> bool:
