@@ -42,6 +42,15 @@ v4 — notebook 04: polígono, circunferência, esfera, nuvem de pontos, projeç
      de figuras, perpendicular comum, plano mediador, planos bissetores, distâncias de
      ponto a plano e entre retas, ângulo entre reta e plano; medir_distancia passa a
      aceitar vários pontos de uma vez
+v5 — notebook 05: semiplanos e diedros (desenho, diedro padrão, seção por um plano,
+     seção igualmente inclinada, semiplano bissetor), medidas de ângulo entre
+     semirretas, de diedro e entre planos
+
+Semiplanos e diedros
+--------------------
+Um semiplano é dado por dois pontos a e b da sua reta de origem e por um ponto p
+fora dessa reta, que indica DE QUE LADO da reta está o semiplano. Um diedro é dado
+pela aresta (os pontos a e b) e por um ponto de cada face (p1 e p2).
 """
 
 # ==================================================================================
@@ -176,6 +185,35 @@ def _encontro_de_retas(
     coeficientes = np.column_stack([pa2 - pa1, -(pb2 - pb1)])
     (t, _), *_ = np.linalg.lstsq(coeficientes, pb1 - pa1, rcond=None)
     return pa1 + t * (pa2 - pa1)
+
+
+def _direcao_do_semiplano(
+    a: Vetor3D, b: Vetor3D, ponto: Vetor3D
+) -> tuple[np.ndarray, np.ndarray]:
+    """Devolve as duas direções que descrevem o semiplano de origem ab que passa
+    por `ponto`.
+
+    A primeira direção (d) corre ao longo da reta de origem, de a para b. A segunda
+    (w) fica dentro do semiplano, forma 90° com a reta de origem e aponta para o lado
+    de `ponto`. Ambas têm comprimento 1.
+    """
+    pa, pb, p = _como_vetor(a), _como_vetor(b), _como_vetor(ponto)
+    if np.linalg.norm(pb - pa) < TOLERANCIA:
+        raise ValueError(
+            "Os dois pontos são iguais: é preciso dois pontos distintos para "
+            "determinar a reta de origem."
+        )
+    d = _normalizar(pb - pa)
+
+    # Tiramos de a→ponto a parte que corre ao longo da reta de origem; o que sobra é
+    # perpendicular a ela e aponta para o lado do semiplano.
+    ap = p - pa
+    lateral = ap - np.dot(ap, d) * d
+    if np.linalg.norm(lateral) <= TOLERANCIA * max(np.linalg.norm(ap), 1.0):
+        raise ValueError(
+            "O ponto está na reta de origem: ele não indica um lado do semiplano."
+        )
+    return d, _normalizar(lateral)
 
 
 # ==================================================================================
@@ -661,6 +699,218 @@ def planos_bissetores(plano1: Plano, plano2: Plano) -> tuple[Plano, Plano]:
     n1 = _normalizar(plano1[1])
     n2 = _normalizar(plano2[1])
     return (ponto, n1 + n2), (ponto.copy(), n1 - n2)
+
+
+def vertices_do_diedro(
+    abertura: float, comprimento: float = 6, largura: float = 4
+) -> dict[str, tuple[float, float, float]]:
+    """Devolve os pontos de um diedro "padrão", pronto para os desenhos.
+
+    O diedro padrão tem a aresta deitada, centrada na origem, com tamanho
+    `comprimento`. A primeira face sai da aresta "para a frente" e a segunda face
+    forma com a primeira o ângulo `abertura`. Assim, nos widgets, basta mexer num
+    número para abrir ou fechar o diedro.
+
+    Esta função não desenha nada. As contas internas usam coordenadas, assunto do
+    módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        abertura: a medida do diedro, em graus (entre 0° e 180°, sem incluir os
+            extremos).
+        comprimento: o tamanho do trecho da aresta.
+        largura: a distância dos pontos das faces até a aresta.
+
+    Retorna:
+        Um dicionário com as chaves "aresta_inicio", "aresta_fim" (as pontas da
+        aresta), "ponto_face1" e "ponto_face2" (um ponto de cada face).
+
+    Levanta:
+        ValueError: se a abertura não estiver entre 0° e 180°.
+
+    Exemplo:
+        >>> d = vertices_do_diedro(90)
+        >>> d["ponto_face2"]
+        (0.0, 0.0, 4.0)
+    """
+    if not 0 < abertura < 180:
+        raise ValueError("A abertura de um diedro deve estar entre 0° e 180°.")
+    c, largura_ = float(comprimento), float(largura)
+
+    # Seno e cosseno servem só para "abrir" a segunda face: ela gira em volta da
+    # aresta, saindo da primeira face, até formar o ângulo pedido.
+    theta = np.radians(abertura)
+    y2 = largura_ * np.cos(theta)
+    z2 = largura_ * np.sin(theta)
+    # Arredondamos para que aberturas como 90° deem 0.0, e não 2.4e-16.
+    y2, z2 = round(float(y2), 12) + 0.0, round(float(z2), 12) + 0.0
+    return {
+        "aresta_inicio": (-c / 2, 0.0, 0.0),
+        "aresta_fim": (c / 2, 0.0, 0.0),
+        "ponto_face1": (0.0, largura_, 0.0),
+        "ponto_face2": (0.0, y2, z2),
+    }
+
+
+def secao_do_diedro(
+    a: Vetor3D, b: Vetor3D, p1: Vetor3D, p2: Vetor3D, plano: Plano
+) -> tuple[
+    tuple[float, float, float], tuple[float, float, float], tuple[float, float, float]
+] | None:
+    """Devolve a seção do diedro pelo plano dado: um ângulo.
+
+    O diedro é dado pela aresta (os pontos a e b) e por um ponto de cada face (p1 e
+    p2). O plano corta a aresta num ponto, o vértice da seção, e corta cada face numa
+    semirreta que sai desse vértice: as duas semirretas formam a seção.
+
+    Esta função não desenha nada. As contas internas usam vetores, assunto do módulo
+    07 (Geometria Analítica).
+
+    Parâmetros:
+        a, b: dois pontos distintos da aresta.
+        p1: um ponto da primeira face (fora da aresta).
+        p2: um ponto da segunda face (fora da aresta).
+        plano: o plano de corte, como (ponto, normal).
+
+    Retorna:
+        Uma tupla (vertice, lado1, lado2): o vértice da seção e um ponto de cada
+        semirreta da seção, a distância 1 do vértice. Devolve None se o plano for
+        paralelo à aresta ou a contiver (nesses casos a seção não é um ângulo).
+
+    Exemplo:
+        >>> d = vertices_do_diedro(60)
+        >>> vertice, lado1, lado2 = secao_do_diedro(
+        ...     d["aresta_inicio"], d["aresta_fim"], d["ponto_face1"], d["ponto_face2"],
+        ...     ((0, 0, 0), (1, 0, 0)),
+        ... )
+    """
+    vertice = intersecao_reta_plano(a, b, plano)
+    if vertice is None:
+        return None
+    v = np.array(vertice)
+    normal_corte = _como_vetor(plano[1])
+
+    lados = []
+    for ponto_da_face in (p1, p2):
+        d, w = _direcao_do_semiplano(a, b, ponto_da_face)
+        # A semirreta da seção está ao mesmo tempo no plano da face e no plano de
+        # corte, então é perpendicular aos dois normais (produto vetorial).
+        normal_face = np.cross(d, w)
+        direcao = _normalizar(np.cross(normal_face, normal_corte))
+        # Das duas semirretas dessa reta, ficamos com a que entra no semiplano
+        # (a que aponta para o lado do ponto da face).
+        if np.dot(direcao, w) < 0:
+            direcao = -direcao
+        x, y, z = v + direcao
+        lados.append((float(x), float(y), float(z)))
+    return vertice, lados[0], lados[1]
+
+
+def secao_igualmente_inclinada(
+    a: Vetor3D,
+    b: Vetor3D,
+    p1: Vetor3D,
+    p2: Vetor3D,
+    vertice: Vetor3D,
+    inclinacao: float,
+) -> tuple[
+    tuple[float, float, float], tuple[float, float, float], tuple[float, float, float]
+]:
+    """Devolve uma seção igualmente inclinada do diedro.
+
+    A partir de `vertice` (um ponto da aresta), traçamos uma semirreta em cada face,
+    as duas formando o mesmo ângulo `inclinacao` com a aresta, do mesmo lado (no
+    sentido que vai de a para b). Com inclinacao=90, a seção obtida é a seção reta.
+
+    O diedro é dado pela aresta (os pontos a e b) e por um ponto de cada face (p1 e
+    p2). Esta função não desenha nada. As contas internas usam vetores, assunto do
+    módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        a, b: dois pontos distintos da aresta.
+        p1: um ponto da primeira face (fora da aresta).
+        p2: um ponto da segunda face (fora da aresta).
+        vertice: o vértice da seção, um ponto da aresta.
+        inclinacao: o ângulo, em graus, entre cada semirreta e a aresta (maior que
+            0° e no máximo 90°).
+
+    Retorna:
+        Uma tupla (vertice, lado1, lado2): o vértice e um ponto de cada semirreta,
+        a distância 1 do vértice.
+
+    Levanta:
+        ValueError: se o vértice não estiver na aresta ou se a inclinação não
+            estiver entre 0° (exclusive) e 90°.
+
+    Exemplo:
+        >>> d = vertices_do_diedro(90)
+        >>> vertice, lado1, lado2 = secao_igualmente_inclinada(
+        ...     d["aresta_inicio"], d["aresta_fim"], d["ponto_face1"], d["ponto_face2"],
+        ...     (0, 0, 0), 45,
+        ... )
+    """
+    if not 0 < inclinacao <= 90:
+        raise ValueError("A inclinação deve estar entre 0° (exclusive) e 90°.")
+    pa, v = _como_vetor(a), _como_vetor(vertice)
+    d, w1 = _direcao_do_semiplano(a, b, p1)
+    _, w2 = _direcao_do_semiplano(a, b, p2)
+
+    # O vértice está na aresta quando a→vértice não tem nenhuma parte "lateral".
+    av = v - pa
+    lateral = av - np.dot(av, d) * d
+    if np.linalg.norm(lateral) > 1e-6 * max(np.linalg.norm(av), 1.0):
+        raise ValueError("O vértice da seção precisa estar na aresta do diedro.")
+
+    # Em cada face, andamos cos(φ) ao longo da aresta e sen(φ) para dentro da face:
+    # a semirreta forma o ângulo φ com a aresta.
+    phi = np.radians(inclinacao)
+    lados = []
+    for w in (w1, w2):
+        x, y, z = v + np.cos(phi) * d + np.sin(phi) * w
+        lados.append((float(x), float(y), float(z)))
+    x, y, z = v
+    return (float(x), float(y), float(z)), lados[0], lados[1]
+
+
+def ponto_do_semiplano_bissetor(
+    a: Vetor3D, b: Vetor3D, p1: Vetor3D, p2: Vetor3D
+) -> tuple[float, float, float]:
+    """Devolve um ponto do semiplano bissetor do diedro.
+
+    O semiplano bissetor tem origem na aresta e divide o diedro em dois diedros
+    adjacentes congruentes. O semiplano de origem ab que passa pelo ponto devolvido
+    é o bissetor: use-o, por exemplo, em `desenhar_semiplano(fig, a, b, ponto)`.
+
+    O diedro é dado pela aresta (os pontos a e b) e por um ponto de cada face (p1 e
+    p2). Esta função não desenha nada. As contas internas usam vetores, assunto do
+    módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        a, b: dois pontos distintos da aresta.
+        p1: um ponto da primeira face (fora da aresta).
+        p2: um ponto da segunda face (fora da aresta).
+
+    Retorna:
+        Um ponto do semiplano bissetor, a distância 1 do ponto a, como (x, y, z).
+
+    Levanta:
+        ValueError: se as duas faces formarem um único plano (não há diedro).
+
+    Exemplo:
+        >>> ponto_do_semiplano_bissetor((0, 0, 0), (1, 0, 0), (0, 1, 0), (0, 0, 1))
+        (0.0, 0.7071067811865475, 0.7071067811865475)
+    """
+    _, w1 = _direcao_do_semiplano(a, b, p1)
+    _, w2 = _direcao_do_semiplano(a, b, p2)
+
+    # Como w1 e w2 têm o mesmo comprimento, a soma deles aponta no meio das duas
+    # faces (é a diagonal de um losango, que divide o ângulo ao meio).
+    meio = w1 + w2
+    if np.linalg.norm(meio) < 1e-6:
+        raise ValueError(
+            "As duas faces formam um único plano: elas não determinam um diedro."
+        )
+    x, y, z = _como_vetor(a) + _normalizar(meio)
+    return float(x), float(y), float(z)
 
 
 # --- Desenhos ---
@@ -1833,6 +2083,200 @@ def desenhar_angulo_entre_retas(
     return desenhar_angulo(fig, v, v + u, v + w, rotulo=rotulo, cor=cor, raio=raio)
 
 
+def desenhar_semiplano(
+    fig: go.Figure,
+    a: Vetor3D,
+    b: Vetor3D,
+    ponto: Vetor3D,
+    rotulo: str | None = None,
+    cor: str | None = None,
+    opacidade: float = 0.35,
+    comprimento: float = 6,
+    largura: float = 4,
+    mostrar_borda: bool = True,
+) -> go.Figure:
+    """Desenha (um pedaço de) um semiplano.
+
+    O semiplano tem origem na reta ab e fica do lado do ponto `ponto`. Como ele é
+    infinito, desenhamos um retângulo: um lado fica sobre a reta de origem (centrado
+    no ponto médio de ab, com tamanho `comprimento`) e o retângulo avança `largura`
+    para o lado de `ponto`. Lembre-se: o semiplano continua além da borda, mas
+    nunca passa para o outro lado da reta de origem.
+
+    Parâmetros:
+        fig: a figura.
+        a, b: dois pontos distintos da reta de origem.
+        ponto: um ponto fora da reta de origem, que indica o lado do semiplano.
+        rotulo: nome do semiplano, por exemplo "α" (opcional).
+        cor: cor do semiplano. Se não for informada, usa CORES["plano"].
+        opacidade: de 0 (invisível) a 1 (totalmente opaco).
+        comprimento: tamanho do lado que fica sobre a reta de origem.
+        largura: quanto o retângulo avança para o lado de `ponto`.
+        mostrar_borda: se True, desenha o contorno do retângulo.
+
+    Retorna:
+        A mesma figura, com o semiplano desenhado.
+
+    Levanta:
+        ValueError: se `ponto` estiver na reta ab.
+
+    Exemplo:
+        >>> fig = desenhar_semiplano(fig, (0, 0, 0), (1, 0, 0), (0, 1, 1), rotulo="α")
+    """
+    d, w = _direcao_do_semiplano(a, b, ponto)
+    meio = (_como_vetor(a) + _como_vetor(b)) / 2
+    cor = cor or CORES["plano"]
+    metade = comprimento / 2
+
+    # Dois cantos sobre a reta de origem e dois cantos afastados `largura` dela.
+    cantos = [
+        meio - metade * d,
+        meio + metade * d,
+        meio + metade * d + largura * w,
+        meio - metade * d + largura * w,
+    ]
+    fig = desenhar_poligono(
+        fig, cantos, cor=cor, opacidade=opacidade, mostrar_borda=mostrar_borda
+    )
+    if rotulo:
+        # O nome fica perto da borda de fora, longe da reta de origem (onde as faces
+        # de um diedro se encontram e os rótulos se misturariam).
+        posicao = meio + 0.35 * comprimento * d + 0.8 * largura * w
+        fig = adicionar_rotulo(fig, posicao, rotulo, cor=cor, tamanho=18)
+    return fig
+
+
+def desenhar_diedro(
+    fig: go.Figure,
+    a: Vetor3D,
+    b: Vetor3D,
+    p1: Vetor3D,
+    p2: Vetor3D,
+    rotulos: tuple[str, str] | None = None,
+    rotulo_aresta: str | None = None,
+    cores: tuple[str, str] | None = None,
+    opacidade: float = 0.35,
+    comprimento: float = 6,
+    largura: float = 4,
+    mostrar_aresta: bool = True,
+) -> go.Figure:
+    """Desenha um diedro: duas faces (semiplanos) com a mesma aresta.
+
+    O diedro é dado pela aresta (os pontos a e b) e por um ponto de cada face: a
+    primeira face é o semiplano de origem ab do lado de p1, e a segunda, o do lado
+    de p2. Cada face é desenhada com `desenhar_semiplano`.
+
+    Parâmetros:
+        fig: a figura.
+        a, b: dois pontos distintos da aresta.
+        p1: um ponto da primeira face (fora da aresta).
+        p2: um ponto da segunda face (fora da aresta).
+        rotulos: os nomes das duas faces, por exemplo ("α", "β") (opcional).
+        rotulo_aresta: o nome da aresta, por exemplo "r" (opcional).
+        cores: as cores das duas faces. Se não forem informadas, usa
+            CORES["plano"] e CORES["plano_secundario"].
+        opacidade: opacidade das faces, de 0 a 1.
+        comprimento: tamanho do trecho da aresta (e do lado das faces sobre ela).
+        largura: quanto cada face avança a partir da aresta.
+        mostrar_aresta: se True, desenha a aresta em destaque.
+
+    Retorna:
+        A mesma figura, com o diedro desenhado.
+
+    Levanta:
+        ValueError: se p1 ou p2 estiver na reta da aresta.
+
+    Exemplo:
+        >>> d = vertices_do_diedro(70)
+        >>> fig = desenhar_diedro(
+        ...     fig, d["aresta_inicio"], d["aresta_fim"], d["ponto_face1"],
+        ...     d["ponto_face2"], rotulos=("α", "β"), rotulo_aresta="r",
+        ... )
+    """
+    cor1, cor2 = cores or (CORES["plano"], CORES["plano_secundario"])
+    rotulo1, rotulo2 = rotulos or (None, None)
+    for ponto_da_face, rotulo, cor in ((p1, rotulo1, cor1), (p2, rotulo2, cor2)):
+        fig = desenhar_semiplano(
+            fig, a, b, ponto_da_face, rotulo=rotulo, cor=cor, opacidade=opacidade,
+            comprimento=comprimento, largura=largura,
+        )
+    if mostrar_aresta:
+        pa, pb = _como_vetor(a), _como_vetor(b)
+        fig = desenhar_reta(
+            fig, (pa + pb) / 2, pb - pa, rotulo=rotulo_aresta,
+            cor=CORES["destaque"], comprimento=comprimento, espessura=6,
+        )
+    return fig
+
+
+def desenhar_secao_do_diedro(
+    fig: go.Figure,
+    a: Vetor3D,
+    b: Vetor3D,
+    p1: Vetor3D,
+    p2: Vetor3D,
+    plano: Plano,
+    rotulo: str | None = None,
+    cor: str | None = None,
+    comprimento: float = 3,
+    mostrar_plano: bool = True,
+    opacidade_plano: float = 0.15,
+    mostrar_arco: bool = True,
+) -> go.Figure:
+    """Desenha a seção do diedro pelo plano dado: as duas semirretas e o ângulo.
+
+    Usa `secao_do_diedro` para encontrar o vértice e as semirretas da seção. Se o
+    plano for paralelo à aresta ou a contiver, não há seção em forma de ângulo: a
+    figura volta sem alterações.
+
+    Parâmetros:
+        fig: a figura.
+        a, b: dois pontos distintos da aresta.
+        p1: um ponto da primeira face (fora da aresta).
+        p2: um ponto da segunda face (fora da aresta).
+        plano: o plano de corte, como (ponto, normal).
+        rotulo: texto escrito junto ao arco, por exemplo "60°" (opcional).
+        cor: cor das semirretas. Se não for informada, usa CORES["reta"].
+        comprimento: tamanho dos trechos desenhados das semirretas.
+        mostrar_plano: se True, desenha o plano de corte, quase transparente
+            (cor CORES["plano_terciario"]).
+        opacidade_plano: opacidade do plano de corte.
+        mostrar_arco: se True, marca o ângulo da seção com um arco.
+
+    Retorna:
+        A mesma figura, com a seção desenhada (se existir).
+
+    Exemplo:
+        >>> d = vertices_do_diedro(60)
+        >>> fig = desenhar_secao_do_diedro(
+        ...     fig, d["aresta_inicio"], d["aresta_fim"], d["ponto_face1"],
+        ...     d["ponto_face2"], ((0, 0, 0), (1, 0, 0)), rotulo="60°",
+        ... )
+    """
+    secao = secao_do_diedro(a, b, p1, p2, plano)
+    if secao is None:
+        return fig
+    v, lado1, lado2 = (np.array(p) for p in secao)
+    cor = cor or CORES["reta"]
+
+    if mostrar_plano:
+        # O plano de corte fica centrado no vértice da seção.
+        fig = desenhar_plano(
+            fig, v, plano[1], cor=CORES["plano_terciario"], opacidade=opacidade_plano,
+            tamanho=2 * comprimento,
+        )
+    # lado1 e lado2 estão a distância 1 do vértice: esticamos até `comprimento`.
+    for lado in (lado1, lado2):
+        fig = desenhar_segmento(
+            fig, v, v + comprimento * (lado - v), cor=cor, espessura=5
+        )
+    if mostrar_arco:
+        fig = desenhar_angulo(
+            fig, v, lado1, lado2, rotulo=rotulo, raio=0.3 * comprimento
+        )
+    return desenhar_ponto(fig, v, cor=cor, tamanho=4)
+
+
 def adicionar_rotulo(
     fig: go.Figure,
     posicao: Vetor3D,
@@ -2381,6 +2825,104 @@ def medir_angulo_reta_plano(a: Vetor3D, b: Vetor3D, plano: Plano) -> float:
     # absoluto e o min protegem de sentidos invertidos e de arredondamentos.
     seno = min(abs(float(np.dot(u, n))), 1.0)
     return float(np.degrees(np.arcsin(seno)))
+
+
+def medir_angulo(vertice: Vetor3D, ponto1: Vetor3D, ponto2: Vetor3D) -> float:
+    """Mede o ângulo entre as semirretas VP1 e VP2, em graus: é o nosso transferidor.
+
+    Diferente de `medir_angulo_entre_retas`, que mede sempre o ângulo agudo entre
+    duas retas, aqui as semirretas têm sentido: o resultado vai de 0° a 180°.
+
+    Esta função usa vetores, assunto do módulo 07 (Geometria Analítica). Aqui ela
+    serve apenas para conferir a sua resposta.
+
+    Parâmetros:
+        vertice: o vértice V do ângulo, como (x, y, z).
+        ponto1: um ponto da primeira semirreta (diferente de V).
+        ponto2: um ponto da segunda semirreta (diferente de V).
+
+    Retorna:
+        A medida do ângulo, em graus, entre 0 e 180.
+
+    Exemplo:
+        >>> v = vertices_do_cubo()
+        >>> round(medir_angulo(v["A"], v["B"], v["C"]), 1)
+        45.0
+    """
+    v = _como_vetor(vertice)
+    u1 = _normalizar(_como_vetor(ponto1) - v)
+    u2 = _normalizar(_como_vetor(ponto2) - v)
+    # O clip protege o arco-cosseno de erros de arredondamento (como 1.0000000002).
+    cosseno = float(np.clip(np.dot(u1, u2), -1.0, 1.0))
+    return float(np.degrees(np.arccos(cosseno)))
+
+
+def medir_angulo_do_diedro(a: Vetor3D, b: Vetor3D, p1: Vetor3D, p2: Vetor3D) -> float:
+    """Mede um diedro, em graus: é a medida da sua seção reta.
+
+    O diedro é dado pela aresta (os pontos a e b) e por um ponto de cada face (p1 e
+    p2). Os pontos das faces não precisam estar na mesma seção reta: a função
+    encontra a seção reta sozinha.
+
+    Esta função usa vetores, assunto do módulo 07 (Geometria Analítica). Aqui ela
+    serve apenas para conferir a sua resposta.
+
+    Parâmetros:
+        a, b: dois pontos distintos da aresta.
+        p1: um ponto da primeira face (fora da aresta).
+        p2: um ponto da segunda face (fora da aresta).
+
+    Retorna:
+        A medida do diedro, em graus, entre 0 e 180.
+
+    Levanta:
+        ValueError: se p1 ou p2 estiver na reta da aresta.
+
+    Exemplo:
+        >>> v = vertices_do_cubo()
+        >>> round(medir_angulo_do_diedro(v["A"], v["B"], v["D"], v["G"]), 1)
+        45.0
+    """
+    # w1 e w2 são as semirretas da seção reta que passa por a: cada uma está numa
+    # face e forma 90° com a aresta. O diedro mede o ângulo entre elas.
+    _, w1 = _direcao_do_semiplano(a, b, p1)
+    _, w2 = _direcao_do_semiplano(a, b, p2)
+    cosseno = float(np.clip(np.dot(w1, w2), -1.0, 1.0))
+    return float(np.degrees(np.arccos(cosseno)))
+
+
+def medir_angulo_entre_planos(plano1: Plano, plano2: Plano) -> float:
+    """Mede o ângulo entre dois planos, em graus.
+
+    Segue a definição do notebook 05: 0° se os planos forem paralelos ou
+    coincidentes; se forem secantes, a medida do menor dos diedros que eles formam.
+    O resultado está sempre entre 0° e 90°.
+
+    Esta função usa vetores, assunto do módulo 07 (Geometria Analítica). Aqui ela
+    serve apenas para conferir a sua resposta.
+
+    Parâmetros:
+        plano1: o primeiro plano, como (ponto, normal).
+        plano2: o segundo plano, como (ponto, normal).
+
+    Retorna:
+        O ângulo entre os planos, em graus.
+
+    Exemplo:
+        >>> v = vertices_do_cubo()
+        >>> base = plano_por_tres_pontos(v["A"], v["B"], v["C"])
+        >>> round(medir_angulo_entre_planos(base, plano_por_tres_pontos(
+        ...     v["A"], v["B"], v["G"])), 1)
+        45.0
+    """
+    if planos_sao_paralelos(plano1, plano2):
+        return 0.0
+    n1 = _normalizar(plano1[1])
+    n2 = _normalizar(plano2[1])
+    # O ângulo entre os planos é igual ao ângulo entre retas perpendiculares a eles
+    # (os normais). O valor absoluto escolhe o menor dos dois ângulos possíveis.
+    cosseno = min(abs(float(np.dot(n1, n2))), 1.0)
+    return float(np.degrees(np.arccos(cosseno)))
 
 
 def reta_perpendicular_ao_plano(a: Vetor3D, b: Vetor3D, plano: Plano) -> bool:

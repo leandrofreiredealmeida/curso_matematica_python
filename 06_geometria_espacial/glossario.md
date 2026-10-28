@@ -4,8 +4,12 @@ Termos do módulo em ordem alfabética, com uma definição curta e o notebook e
 
 | Termo | Definição curta | Notebook |
 |---|---|---|
+| Ângulo entre dois planos | 0° se os planos são paralelos ou coincidentes; se são secantes, a medida do **menor** dos diedros que eles formam (entre 0° e 90°). É igual ao ângulo entre retas perpendiculares aos planos. | [0605a](0605a_diedros.ipynb) |
 | Ângulo entre duas retas | O menor ângulo formado por elas: entre 0° e 90°. Para retas reversas, é o ângulo entre uma delas e uma paralela à outra que a corta. | [0602a](0602a_paralelismo.ipynb) |
 | Ângulo entre reta e plano | 90° se a reta é perpendicular ao plano; 0° se é paralela a ele ou está contida nele; nos outros casos, o ângulo entre a reta e a sua projeção ortogonal sobre o plano (o menor ângulo que ela forma com as retas do plano). | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
+| Ângulo retilíneo | O ângulo obtido numa seção reta de um diedro. A sua medida é a medida do diedro. | [0605a](0605a_diedros.ipynb) |
+| Área da projeção | Uma figura plana de área $S$ num plano que forma ângulo $\theta$ com $\beta$ tem projeção ortogonal sobre $\beta$ de área $S' = S \cos\theta$. Telhado: $S_{\text{telhado}} = S_{\text{planta}} / \cos\theta$. | [0605a](0605a_diedros.ipynb) |
+| Aresta do diedro | A reta $r$, origem comum das duas faces de um diedro. | [0605a](0605a_diedros.ipynb) |
 | Coincidentes (retas ou planos) | São o mesmo objeto: todos os pontos em comum. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
 | Colineares (pontos) | Pontos que pertencem a uma mesma reta. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
 | Conceitos primitivos | Ponto, reta e plano: aceitos sem definição, a partir da intuição. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
@@ -15,11 +19,18 @@ Termos do módulo em ordem alfabética, com uma definição curta e o notebook e
 | Contida (reta num plano) | Todos os pontos da reta pertencem ao plano: $r \subset \alpha$. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
 | Coplanares | Pontos ou retas que pertencem a (ou estão contidos em) um mesmo plano. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
 | Determinação de um plano | Um plano fica determinado por: três pontos não colineares; uma reta e um ponto fora dela; duas retas concorrentes; ou duas retas paralelas distintas. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
+| Diedro | Figura formada por dois semiplanos de mesma origem que não estão contidos num mesmo plano: $\mathrm{di}(\alpha\, r\, \beta)$. É o "ângulo" do espaço. | [0605a](0605a_diedros.ipynb) |
+| Diedro agudo, reto e obtuso | Diedro de medida menor que 90°, igual a 90° (faces em planos perpendiculares) ou maior que 90°, respectivamente. | [0605a](0605a_diedros.ipynb) |
+| Diedros adjacentes | Diedros com a mesma aresta e uma face em comum, sem sobreposição. | [0605a](0605a_diedros.ipynb) |
+| Diedros complementares e suplementares | Diedros cujas medidas somam 90° (complementares) ou 180° (suplementares). | [0605a](0605a_diedros.ipynb) |
+| Diedros congruentes | Diedros com a mesma medida. | [0605a](0605a_diedros.ipynb) |
+| Diedros opostos pela aresta | Dois dos quatro diedros formados por dois planos secantes que não são adjacentes. São congruentes, como os ângulos opostos pelo vértice. | [0605a](0605a_diedros.ipynb) |
 | Distância de ponto a plano | O comprimento do segmento perpendicular do ponto ao plano: é o menor segmento entre eles. | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
 | Distância de um ponto a uma reta | O comprimento do segmento perpendicular que liga o ponto à reta: é o menor segmento entre eles. Com as três perpendiculares, $PM = \sqrt{PO^2 + OM^2}$. | [0603a](0603a_perpendicularidade.ipynb) |
 | Distância entre figuras | O comprimento do **menor** segmento que liga um ponto de uma figura a um ponto da outra. | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
 | Distância entre planos paralelos | A distância de **qualquer** ponto de um dos planos ao outro (todos dão o mesmo valor). É a altura de um prisma. | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
 | Distância entre retas reversas | O comprimento do segmento da perpendicular comum. É igual à distância entre os planos paralelos que contêm as duas retas. | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
+| Faces do diedro | Os dois semiplanos $\alpha$ e $\beta$ que formam um diedro. | [0605a](0605a_diedros.ipynb) |
 | Feixe de planos | O conjunto de todos os planos que passam por uma mesma reta. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
 | Figura espacial | Figura cujos pontos não estão todos num mesmo plano. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
 | Figura plana | Figura cujos pontos estão todos num mesmo plano. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
@@ -29,6 +40,7 @@ Termos do módulo em ordem alfabética, com uma definição curta e o notebook e
 | Geometria não euclidiana | Geometria coerente em que o postulado das paralelas é falso (Gauss, Bolyai, Lobachevsky). | [0602a](0602a_paralelismo.ipynb) |
 | Inclinação percentual | A tangente do ângulo de inclinação vezes 100: $\tan\theta \cdot 100\%$. Uma inclinação de 100% corresponde a 45°, e não a uma parede vertical. | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
 | Lugar geométrico | O conjunto de **todos** os pontos que têm uma certa propriedade, e **somente** eles. | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
+| Medida de um diedro | A medida do seu ângulo retilíneo (de qualquer seção reta). | [0605a](0605a_diedros.ipynb) |
 | Paralelas (retas) | Retas coplanares sem ponto em comum (ou coincidentes). | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
 | Pé da perpendicular | O ponto $O$ onde uma reta perpendicular a um plano (ou a uma reta) encontra esse plano (ou essa reta). | [0603a](0603a_perpendicularidade.ipynb) |
 | Perpendicular comum | A única reta concorrente com duas retas reversas e perpendicular a ambas. | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
@@ -52,8 +64,14 @@ Termos do módulo em ordem alfabética, com uma definição curta e o notebook e
 | Retas ortogonais | Retas **reversas** que formam ângulo de 90°. | [0602a](0602a_paralelismo.ipynb) |
 | Retas perpendiculares | Retas **concorrentes** que formam ângulo de 90°. | [0602a](0602a_paralelismo.ipynb) |
 | Retas reversas | Retas que não estão num mesmo plano. Nunca se encontram e não são paralelas. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
+| Seção de um diedro | O ângulo obtido cortando o diedro por um plano que corta a aresta num único ponto. Seções oblíquas podem ser maiores ou menores que a abertura verdadeira. | [0605a](0605a_diedros.ipynb) |
+| Seção igualmente inclinada | Ângulo $x\hat{O}y$, com $O$ na aresta, $Ox$ numa face e $Oy$ na outra, cujos lados formam com a aresta, do mesmo lado, um mesmo ângulo $\varphi$ (a inclinação). Diedros congruentes ⟺ seções igualmente inclinadas congruentes de mesma inclinação. | [0605a](0605a_diedros.ipynb) |
+| Seção reta (seção normal) | Seção de um diedro feita por um plano **perpendicular à aresta**. Todas as seções retas de um diedro são congruentes. | [0605a](0605a_diedros.ipynb) |
 | Segmento oblíquo | Segmento $PA$ que liga um ponto $P$ fora de um plano a um ponto $A$ do plano, diferente do pé $O$ da perpendicular. A sua projeção no plano é $OA$, e $PA^2 = PO^2 + OA^2$. | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
 | Segmento perpendicular | Segmento $PO$ que liga um ponto $P$ ao pé $O$ da perpendicular a um plano. É menor que qualquer segmento oblíquo traçado de $P$. | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
+| Semiespaço | Cada uma das duas partes em que um plano divide o espaço. | [0605a](0605a_diedros.ipynb) |
+| Semiplano | Cada uma das duas partes em que uma reta $r$ divide um plano, junto com a própria reta $r$ (a **origem** do semiplano). | [0605a](0605a_diedros.ipynb) |
+| Semiplano bissetor | Semiplano com origem na aresta que divide um diedro em dois diedros adjacentes congruentes. Os seus pontos são equidistantes das duas faces. | [0605a](0605a_diedros.ipynb) |
 | Superfície esférica | O conjunto dos pontos do espaço que estão a uma distância $R$ (o raio) de um ponto $C$ (o centro). | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
 | Teorema | Afirmação demonstrada a partir dos postulados e de outros teoremas. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
 | Teorema das três perpendiculares | Se $r \perp \alpha$ em $O$, $s \subset \alpha$ e $OM \perp s$ (com $M \in s$), então $PM \perp s$ para todo $P \in r$. | [0603a](0603a_perpendicularidade.ipynb) |
