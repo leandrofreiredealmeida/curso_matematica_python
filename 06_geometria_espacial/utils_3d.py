@@ -45,12 +45,27 @@ v4 — notebook 04: polígono, circunferência, esfera, nuvem de pontos, projeç
 v5 — notebook 05: semiplanos e diedros (desenho, diedro padrão, seção por um plano,
      seção igualmente inclinada, semiplano bissetor), medidas de ângulo entre
      semirretas, de diedro e entre planos
+v6 — notebook 06: triedros (construção a partir das faces, planificação, triedro
+     polar, medição dos seis elementos), ângulo poliédrico regular, desenho de
+     triedros e ângulos poliédricos
 
 Semiplanos e diedros
 --------------------
 Um semiplano é dado por dois pontos a e b da sua reta de origem e por um ponto p
 fora dessa reta, que indica DE QUE LADO da reta está o semiplano. Um diedro é dado
 pela aresta (os pontos a e b) e por um ponto de cada face (p1 e p2).
+
+Triedros e ângulos poliédricos
+------------------------------
+Um triedro V(a, b, c) é dado pelo vértice V e por um ponto em cada aresta: A na
+aresta a, B na aresta b e C na aresta c. Cada face recebe o nome da aresta OPOSTA a
+ela, como um lado de triângulo recebe o nome do vértice oposto:
+    f_a = BVC,   f_b = AVC,   f_c = AVB.
+Os diedros d_a, d_b e d_c são os diedros de arestas a, b e c.
+
+Um ângulo poliédrico é dado pelo vértice e por uma lista de pontos, um em cada
+aresta, NA ORDEM em que as arestas aparecem ao redor do vértice. As faces são os
+ângulos entre arestas vizinhas (a última aresta é vizinha da primeira).
 """
 
 # ==================================================================================
@@ -214,6 +229,22 @@ def _direcao_do_semiplano(
             "O ponto está na reta de origem: ele não indica um lado do semiplano."
         )
     return d, _normalizar(lateral)
+
+
+def _como_ponto(vetor: Vetor3D) -> tuple[float, float, float]:
+    """Converte um vetor numa tupla (x, y, z) de números "limpos".
+
+    Arredondamos na 12ª casa para que contas como cos(90°) deem 0.0, e não
+    6.1e-17; somar 0.0 troca o "-0.0" por "0.0".
+    """
+    x, y, z = (round(float(c), 12) + 0.0 for c in _como_vetor(vetor))
+    return x, y, z
+
+
+def _conferir_face(face: float, mensagem: str) -> None:
+    """Levanta ValueError com a mensagem dada se a face não estiver entre 0° e 180°."""
+    if not 0 < face < 180:
+        raise ValueError(mensagem)
 
 
 # ==================================================================================
@@ -911,6 +942,238 @@ def ponto_do_semiplano_bissetor(
         )
     x, y, z = _como_vetor(a) + _normalizar(meio)
     return float(x), float(y), float(z)
+
+
+def vertices_do_triedro(
+    face_a: float, face_b: float, face_c: float, comprimento: float = 3
+) -> dict[str, tuple[float, float, float]]:
+    """Constrói um triedro com as três faces dadas.
+
+    Cada face tem o nome da aresta oposta a ela: f_a = BVC, f_b = AVC e f_c = AVB.
+    O vértice V fica na origem, a aresta a fica deitada, a aresta b fica no mesmo
+    plano horizontal e a aresta c sobe. Assim, nos widgets, basta mexer em três
+    números para montar qualquer triedro.
+
+    Esta função não desenha nada. As contas internas usam coordenadas, assunto do
+    módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        face_a: a face f_a = BVC, em graus.
+        face_b: a face f_b = AVC, em graus.
+        face_c: a face f_c = AVB, em graus.
+        comprimento: a distância de V até os pontos A, B e C.
+
+    Retorna:
+        Um dicionário {"V": ..., "A": ..., "B": ..., "C": ...}, com um ponto em
+        cada aresta.
+
+    Levanta:
+        ValueError: se alguma face não estiver entre 0° e 180°, se a soma das
+            faces não for menor que 360° ou se alguma face não for menor que a
+            soma das outras duas (nesses casos, o triedro não existe).
+
+    Exemplo:
+        >>> t = vertices_do_triedro(90, 90, 90)
+        >>> t["C"]
+        (0.0, 0.0, 3.0)
+    """
+    faces = (face_a, face_b, face_c)
+    for face in faces:
+        _conferir_face(face, "Cada face de um triedro deve estar entre 0° e 180°.")
+    soma = face_a + face_b + face_c
+    if soma >= 360:
+        raise ValueError(
+            f"Essas faces não formam um triedro: a soma delas ({soma:g}°) não é "
+            "menor que 360°."
+        )
+    maior = max(faces)
+    soma_outras = soma - maior
+    if maior >= soma_outras:
+        raise ValueError(
+            f"Essas faces não formam um triedro: a face de {maior:g}° não é menor "
+            f"que a soma das outras duas ({soma_outras:g}°)."
+        )
+
+    fa, fb, fc = (np.radians(face) for face in faces)
+    # A aresta a aponta para a frente; a aresta b fica no plano horizontal, girada
+    # de f_c em relação a a. Assim o ângulo AVB já mede f_c.
+    a = np.array([1.0, 0.0, 0.0])
+    b = np.array([np.cos(fc), np.sin(fc), 0.0])
+    # A aresta c precisa formar f_b com a e f_a com b. Os dois primeiros números
+    # saem dessas duas exigências; o terceiro (a "altura") completa o comprimento 1.
+    cx = np.cos(fb)
+    cy = (np.cos(fa) - np.cos(fb) * np.cos(fc)) / np.sin(fc)
+    # Como as faces já foram conferidas, o que sobra para a altura é positivo; só um
+    # arredondamento (algo como -1e-17) poderia dar negativo, e aí usamos zero.
+    resto = 1 - cx**2 - cy**2
+    cz = np.sqrt(resto) if resto > TOLERANCIA else 0.0
+    c = np.array([cx, cy, cz])
+
+    return {
+        "V": (0.0, 0.0, 0.0),
+        "A": _como_ponto(comprimento * a),
+        "B": _como_ponto(comprimento * b),
+        "C": _como_ponto(comprimento * c),
+    }
+
+
+def planificacao_do_triedro(
+    face_a: float, face_b: float, face_c: float, comprimento: float = 3
+) -> dict[str, tuple[float, float, float]]:
+    """Devolve os pontos da planificação de um triedro: as faces "abertas" no papel.
+
+    As três faces ficam lado a lado, no plano horizontal, em volta de V e nesta
+    ordem: AVB (f_c), BVC (f_a) e CVA' (f_b). Quando o triedro existe, o ponto A'
+    é o ponto A que se separou ao abrir o papel; o ângulo A'VA é a "folga".
+
+    Diferente de `vertices_do_triedro`, esta função NÃO confere se as faces formam
+    um triedro: ela serve justamente para mostrar planificações que fecham e
+    planificações que não fecham (a soma pode até passar de 360°, e então as faces
+    se sobrepõem). Esta função não desenha nada, e as contas internas usam
+    coordenadas, assunto do módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        face_a: a face f_a = BVC, em graus.
+        face_b: a face f_b = AVC, em graus.
+        face_c: a face f_c = AVB, em graus.
+        comprimento: a distância de V até os outros pontos.
+
+    Retorna:
+        Um dicionário com as chaves "V", "A", "B", "C" e "A_linha" (o ponto A').
+
+    Levanta:
+        ValueError: se alguma face não estiver entre 0° e 180°.
+
+    Exemplo:
+        >>> p = planificacao_do_triedro(90, 90, 90)
+        >>> p["A_linha"]
+        (0.0, -3.0, 0.0)
+    """
+    for face in (face_a, face_b, face_c):
+        _conferir_face(face, "Cada face de um triedro deve estar entre 0° e 180°.")
+
+    def ponto_no_giro(angulo: float) -> tuple[float, float, float]:
+        # Seno e cosseno giram o ponto em volta de V, no plano horizontal.
+        t = np.radians(angulo)
+        return _como_ponto((comprimento * np.cos(t), comprimento * np.sin(t), 0.0))
+
+    return {
+        "V": (0.0, 0.0, 0.0),
+        "A": ponto_no_giro(0),
+        "B": ponto_no_giro(face_c),
+        "C": ponto_no_giro(face_c + face_a),
+        "A_linha": ponto_no_giro(face_c + face_a + face_b),
+    }
+
+
+def triedro_polar(
+    V: Vetor3D, A: Vetor3D, B: Vetor3D, C: Vetor3D, comprimento: float = 3
+) -> dict[str, tuple[float, float, float]]:
+    """Devolve o triedro polar (ou suplementar) do triedro V(a, b, c).
+
+    O polar tem o mesmo vértice V. A aresta a' é perpendicular ao plano da face
+    f_a (o plano VBC) e fica do MESMO lado desse plano que a aresta a; do mesmo
+    modo, b' é perpendicular ao plano VAC (do lado de b) e c' ao plano VAB (do
+    lado de c). Esta função não desenha nada, e as contas internas usam vetores,
+    assunto do módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        V: o vértice do triedro.
+        A, B, C: um ponto em cada aresta (a, b e c).
+        comprimento: a distância de V até os pontos devolvidos.
+
+    Retorna:
+        Um dicionário {"V": V, "A": A', "B": B', "C": C'}, com um ponto em cada
+        aresta do polar.
+
+    Levanta:
+        ValueError: se as três arestas forem coplanares (não há triedro).
+
+    Exemplo:
+        >>> t = vertices_do_triedro(90, 90, 90)
+        >>> triedro_polar(t["V"], t["A"], t["B"], t["C"])["A"]
+        (3.0, 0.0, 0.0)
+    """
+    v = _como_vetor(V)
+    arestas = [_como_vetor(p) - v for p in (A, B, C)]
+    polar = {"V": _como_ponto(v)}
+    # Para cada aresta, as outras duas determinam a face oposta a ela.
+    for nome, indice in zip("ABC", range(3), strict=True):
+        propria = arestas[indice]
+        outra1, outra2 = arestas[(indice + 1) % 3], arestas[(indice + 2) % 3]
+        # O produto vetorial das duas arestas da face é perpendicular à face.
+        normal = np.cross(outra1, outra2)
+        # O sinal do produto escalar diz de que lado da face está a aresta própria;
+        # se ele é (quase) zero, a aresta está no plano da face.
+        lado = np.dot(normal, propria)
+        escala = np.linalg.norm(normal) * np.linalg.norm(propria)
+        if abs(lado) <= TOLERANCIA * escala:
+            raise ValueError(
+                "As três arestas são coplanares: elas não formam um triedro."
+            )
+        # Das duas perpendiculares à face, ficamos com a do lado da aresta própria.
+        if lado < 0:
+            normal = -normal
+        polar[nome] = _como_ponto(v + comprimento * _normalizar(normal))
+    return polar
+
+
+def vertices_do_angulo_poliedrico_regular(
+    n: int, face: float, comprimento: float = 3
+) -> tuple[tuple[float, float, float], list[tuple[float, float, float]]]:
+    """Constrói um ângulo poliédrico regular: n arestas, faces e diedros iguais.
+
+    O vértice fica na origem e as n arestas descem em volta do eixo vertical,
+    igualmente espaçadas, como a ponta de uma pirâmide regular virada para cima.
+    As arestas vêm na ordem em que aparecem ao redor do vértice, e cada face (o
+    ângulo entre duas arestas vizinhas) mede `face` graus.
+
+    Esta função não desenha nada. As contas internas usam coordenadas, assunto do
+    módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        n: o número de arestas (pelo menos 3).
+        face: a medida de cada face, em graus.
+        comprimento: a distância do vértice até os pontos das arestas.
+
+    Retorna:
+        Uma tupla (vertice, pontos): o vértice e a lista com um ponto em cada
+        aresta.
+
+    Levanta:
+        ValueError: se n < 3, se a face não estiver entre 0° e 180° ou se a soma
+            das faces não for menor que 360° (o ângulo poliédrico convexo não
+            existe).
+
+    Exemplo:
+        >>> vertice, pontos = vertices_do_angulo_poliedrico_regular(4, 60)
+        >>> len(pontos)
+        4
+    """
+    if n < 3:
+        raise ValueError("Um ângulo poliédrico precisa de pelo menos 3 arestas.")
+    _conferir_face(face, "Cada face deve estar entre 0° e 180°.")
+    if n * face >= 360:
+        raise ValueError(
+            f"A soma das faces seria {n * face:g}°, que não é menor que 360°: esse "
+            "ângulo poliédrico convexo não existe."
+        )
+
+    # Cada aresta se afasta do eixo vertical por um ângulo ψ. Quanto mais
+    # "aberta" a ponta (ψ maior), maiores as faces; a fórmula abaixo escolhe ψ
+    # para que duas arestas vizinhas formem exatamente o ângulo `face`.
+    passo = 2 * np.pi / n
+    seno_quadrado = (1 - np.cos(np.radians(face))) / (1 - np.cos(passo))
+    psi = np.arcsin(np.sqrt(seno_quadrado))
+    pontos = []
+    for k in range(n):
+        direcao = (
+            np.sin(psi) * np.cos(k * passo),
+            np.sin(psi) * np.sin(k * passo),
+            -np.cos(psi),
+        )
+        pontos.append(_como_ponto(comprimento * np.array(direcao)))
+    return (0.0, 0.0, 0.0), pontos
 
 
 # --- Desenhos ---
@@ -2277,6 +2540,136 @@ def desenhar_secao_do_diedro(
     return desenhar_ponto(fig, v, cor=cor, tamanho=4)
 
 
+def desenhar_angulo_poliedrico(
+    fig: go.Figure,
+    vertice: Vetor3D,
+    pontos: Sequence[Vetor3D],
+    rotulos_arestas: Sequence[str] | None = None,
+    rotulo_vertice: str | None = "V",
+    cores: str | Sequence[str] | None = None,
+    opacidade: float = 0.3,
+    mostrar_faces: bool = True,
+    espessura: float = 4,
+    cor_arestas: str | None = None,
+) -> go.Figure:
+    """Desenha um ângulo poliédrico: as arestas e, se pedido, as faces.
+
+    O ângulo poliédrico é dado pelo vértice e por um ponto em cada aresta, NA ORDEM
+    em que as arestas aparecem ao redor do vértice. Cada face é o ângulo entre duas
+    arestas vizinhas (a última é vizinha da primeira); como as faces são infinitas,
+    desenhamos de cada uma só o triângulo vértice-ponto-ponto seguinte.
+
+    Parâmetros:
+        fig: a figura.
+        vertice: o vértice V, como (x, y, z).
+        pontos: um ponto em cada aresta, na ordem ao redor do vértice (pelo menos 3).
+        rotulos_arestas: os nomes das arestas, na mesma ordem dos pontos, escritos
+            nas pontas (opcional).
+        rotulo_vertice: o nome do vértice (use None para não escrever nada).
+        cores: a cor das faces. Pode ser uma cor só ou uma lista de cores, usada em
+            ciclo. Se não for informada, usa em ciclo CORES["plano"],
+            CORES["plano_secundario"] e CORES["plano_terciario"].
+        opacidade: opacidade das faces, de 0 a 1.
+        mostrar_faces: se False, desenha só as arestas.
+        espessura: espessura das arestas.
+        cor_arestas: cor das arestas. Se não for informada, usa CORES["apoio"].
+
+    Retorna:
+        A mesma figura, com o ângulo poliédrico desenhado.
+
+    Levanta:
+        ValueError: se houver menos de 3 pontos ou se a lista de rótulos não tiver
+            um nome para cada aresta.
+
+    Exemplo:
+        >>> vertice, pontos = vertices_do_angulo_poliedrico_regular(4, 60)
+        >>> fig = desenhar_angulo_poliedrico(fig, vertice, pontos)
+    """
+    if len(pontos) < 3:
+        raise ValueError("Um ângulo poliédrico precisa de pelo menos 3 arestas.")
+    if rotulos_arestas is not None and len(rotulos_arestas) != len(pontos):
+        raise ValueError("A lista de rótulos precisa ter um nome para cada aresta.")
+    v = _como_vetor(vertice)
+    pontas = [_como_vetor(p) for p in pontos]
+    quantidade = len(pontas)
+
+    if cores is None:
+        cores = [CORES["plano"], CORES["plano_secundario"], CORES["plano_terciario"]]
+    elif isinstance(cores, str):
+        cores = [cores]
+
+    if mostrar_faces:
+        # Face i: o triângulo entre a aresta i e a aresta seguinte. O resto da
+        # divisão (%) faz a última aresta voltar para a primeira.
+        for i in range(quantidade):
+            triangulo = [v, pontas[i], pontas[(i + 1) % quantidade]]
+            fig = desenhar_poligono(
+                fig, triangulo, cor=cores[i % len(cores)], opacidade=opacidade
+            )
+
+    for i, ponta in enumerate(pontas):
+        fig = desenhar_segmento(
+            fig, v, ponta, cor=cor_arestas or CORES["apoio"], espessura=espessura
+        )
+        if rotulos_arestas is not None:
+            # O nome fica um pouco além da ponta, no prolongamento da aresta.
+            fig = adicionar_rotulo(
+                fig, v + 1.12 * (ponta - v), rotulos_arestas[i],
+                cor=cor_arestas or CORES["texto"],
+            )
+    return desenhar_ponto(fig, v, rotulo=rotulo_vertice)
+
+
+def desenhar_triedro(
+    fig: go.Figure,
+    V: Vetor3D,
+    A: Vetor3D,
+    B: Vetor3D,
+    C: Vetor3D,
+    rotulos_arestas: Sequence[str] | None = ("a", "b", "c"),
+    rotulo_vertice: str | None = "V",
+    cores: str | Sequence[str] | None = None,
+    opacidade: float = 0.3,
+    mostrar_faces: bool = True,
+    espessura: float = 4,
+    cor_arestas: str | None = None,
+) -> go.Figure:
+    """Desenha um triedro V(a, b, c): as três arestas e, se pedido, as três faces.
+
+    É um atalho para `desenhar_angulo_poliedrico` com três arestas. O triedro é
+    dado pelo vértice V e por um ponto em cada aresta (A em a, B em b, C em c).
+    Por padrão, as faces ficam com as três cores de plano, nesta ordem: f_c (AVB)
+    com CORES["plano"], f_a (BVC) com CORES["plano_secundario"] e f_b (CVA) com
+    CORES["plano_terciario"].
+
+    Parâmetros:
+        fig: a figura.
+        V: o vértice, como (x, y, z).
+        A, B, C: um ponto em cada aresta.
+        rotulos_arestas: os nomes das arestas a, b e c (use None para não
+            escrever nada).
+        rotulo_vertice: o nome do vértice (use None para não escrever nada).
+        cores: uma cor só ou uma lista de cores para as faces, na ordem f_c, f_a,
+            f_b (opcional).
+        opacidade: opacidade das faces, de 0 a 1.
+        mostrar_faces: se False, desenha só as arestas.
+        espessura: espessura das arestas.
+        cor_arestas: cor das arestas. Se não for informada, usa CORES["apoio"].
+
+    Retorna:
+        A mesma figura, com o triedro desenhado.
+
+    Exemplo:
+        >>> t = vertices_do_triedro(90, 90, 90)
+        >>> fig = desenhar_triedro(fig, t["V"], t["A"], t["B"], t["C"])
+    """
+    return desenhar_angulo_poliedrico(
+        fig, V, [A, B, C], rotulos_arestas=rotulos_arestas,
+        rotulo_vertice=rotulo_vertice, cores=cores, opacidade=opacidade,
+        mostrar_faces=mostrar_faces, espessura=espessura, cor_arestas=cor_arestas,
+    )
+
+
 def adicionar_rotulo(
     fig: go.Figure,
     posicao: Vetor3D,
@@ -2889,6 +3282,47 @@ def medir_angulo_do_diedro(a: Vetor3D, b: Vetor3D, p1: Vetor3D, p2: Vetor3D) -> 
     _, w2 = _direcao_do_semiplano(a, b, p2)
     cosseno = float(np.clip(np.dot(w1, w2), -1.0, 1.0))
     return float(np.degrees(np.arccos(cosseno)))
+
+
+def medir_elementos_do_triedro(
+    V: Vetor3D, A: Vetor3D, B: Vetor3D, C: Vetor3D
+) -> dict[str, dict[str, float]]:
+    """Mede os seis elementos de um triedro: as três faces e os três diedros.
+
+    O triedro é dado pelo vértice V e por um ponto em cada aresta (A em a, B em b,
+    C em c). Cada face tem o nome da aresta oposta a ela: f_a = BVC, f_b = AVC e
+    f_c = AVB. O diedro d_a tem aresta VA e faces passando por B e por C (e assim
+    por diante).
+
+    Esta função usa vetores, assunto do módulo 07 (Geometria Analítica). Aqui ela
+    serve apenas para conferir a sua resposta.
+
+    Parâmetros:
+        V: o vértice, como (x, y, z).
+        A, B, C: um ponto em cada aresta.
+
+    Retorna:
+        Um dicionário {"faces": {"a": ..., "b": ..., "c": ...},
+        "diedros": {"a": ..., "b": ..., "c": ...}}, com as medidas em graus.
+
+    Exemplo:
+        >>> t = vertices_do_triedro(90, 90, 60)
+        >>> e = medir_elementos_do_triedro(t["V"], t["A"], t["B"], t["C"])
+        >>> round(e["diedros"]["c"], 1)
+        60.0
+    """
+    return {
+        "faces": {
+            "a": medir_angulo(V, B, C),
+            "b": medir_angulo(V, A, C),
+            "c": medir_angulo(V, A, B),
+        },
+        "diedros": {
+            "a": medir_angulo_do_diedro(V, A, B, C),
+            "b": medir_angulo_do_diedro(V, B, A, C),
+            "c": medir_angulo_do_diedro(V, C, A, B),
+        },
+    }
 
 
 def medir_angulo_entre_planos(plano1: Plano, plano2: Plano) -> float:
