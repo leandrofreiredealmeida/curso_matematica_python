@@ -13,6 +13,7 @@ Termos do módulo em ordem alfabética, com uma definição curta e o notebook e
 | Área da projeção | Uma figura plana de área $S$ num plano que forma ângulo $\theta$ com $\beta$ tem projeção ortogonal sobre $\beta$ de área $S' = S \cos\theta$. Telhado: $S_{\text{telhado}} = S_{\text{planta}} / \cos\theta$. | [0605a](0605a_diedros.ipynb) |
 | Aresta do diedro | A reta $r$, origem comum das duas faces de um diedro. | [0605a](0605a_diedros.ipynb) |
 | Arestas do triedro | As três semirretas $a$, $b$ e $c$ de um triedro $V(a, b, c)$. | [0606a](0606a_triedros_e_angulos_poliedricos.ipynb) |
+| Característica de Euler | O valor de $V - A + F$ de um poliedro. Vale 2 nos poliedros convexos, 0 num poliedro com um furo (como a moldura), −2 com dois furos, e assim por diante. É um dos pontos de partida da Topologia. | [0607a](0607a_poliedros_convexos.ipynb) |
 | Coincidentes (retas ou planos) | São o mesmo objeto: todos os pontos em comum. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
 | Colineares (pontos) | Pontos que pertencem a uma mesma reta. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
 | Conceitos primitivos | Ponto, reta e plano: aceitos sem definição, a partir da intuição. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
@@ -22,6 +23,7 @@ Termos do módulo em ordem alfabética, com uma definição curta e o notebook e
 | Congruência de triedros (FDF, DFD, FFF, DDD) | Dois triedros são congruentes quando há uma correspondência entre as arestas em que as faces e os diedros correspondentes são congruentes. Bastam três elementos: FDF, DFD, FFF ou DDD (este último sem análogo nos triângulos, porque triedros não têm tamanho). | [0606a](0606a_triedros_e_angulos_poliedricos.ipynb) |
 | Contida (reta num plano) | Todos os pontos da reta pertencem ao plano: $r \subset \alpha$. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
 | Coplanares | Pontos ou retas que pertencem a (ou estão contidos em) um mesmo plano. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
+| Cuboctaedro | Sólido de Arquimedes com 8 faces triangulares e 6 quadradas ($V = 12$, $A = 24$, $F = 14$), obtido truncando o cubo até a metade das arestas. | [0607a](0607a_poliedros_convexos.ipynb) |
 | Defeito angular | A diferença $360° - $ (soma das faces) num vértice: o quanto "falta" para o papel ficar plano. Descartes mostrou que, num poliedro convexo, a soma dos defeitos de todos os vértices é sempre 720°. | [0606a](0606a_triedros_e_angulos_poliedricos.ipynb) |
 | Desigualdade das faces | Em todo triedro, cada face é menor que a soma das outras duas ($f_a < f_b + f_c$ etc.). Junto com a soma das faces menor que 360°, é a condição para três ângulos serem as faces de um triedro. | [0606a](0606a_triedros_e_angulos_poliedricos.ipynb) |
 | Determinação de um plano | Um plano fica determinado por: três pontos não colineares; uma reta e um ponto fora dela; duas retas concorrentes; ou duas retas paralelas distintas. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
@@ -39,6 +41,7 @@ Termos do módulo em ordem alfabética, com uma definição curta e o notebook e
 | Distância entre retas reversas | O comprimento do segmento da perpendicular comum. É igual à distância entre os planos paralelos que contêm as duas retas. | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
 | Faces do diedro | Os dois semiplanos $\alpha$ e $\beta$ que formam um diedro. | [0605a](0605a_diedros.ipynb) |
 | Faces do triedro | Os três ângulos de um triedro. Cada face recebe o nome da aresta oposta: $f_a = b\hat{V}c$, $f_b = a\hat{V}c$, $f_c = a\hat{V}b$. A soma das faces é menor que 360°. | [0606a](0606a_triedros_e_angulos_poliedricos.ipynb) |
+| Faces, arestas e vértices de um poliedro | As **faces** são os polígonos que limitam o poliedro; as **arestas** são os lados das faces (cada uma comum a exatamente duas faces); os **vértices** são os vértices das faces, e em cada um há um ângulo poliédrico. Os seus números são indicados por $F$, $A$ e $V$. | [0607a](0607a_poliedros_convexos.ipynb) |
 | Feixe de planos | O conjunto de todos os planos que passam por uma mesma reta. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
 | Figura espacial | Figura cujos pontos não estão todos num mesmo plano. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
 | Figura plana | Figura cujos pontos estão todos num mesmo plano. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
@@ -46,6 +49,7 @@ Termos do módulo em ordem alfabética, com uma definição curta e o notebook e
 | Geometria de Posição | Parte da Geometria Espacial que estuda as posições relativas de pontos, retas e planos, sem medir. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
 | Geometria Descritiva | Método criado por Gaspard Monge no fim do século XVIII para representar objetos 3D por projeções ortogonais em dois ou mais planos. É a base do desenho técnico. | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
 | Geometria não euclidiana | Geometria coerente em que o postulado das paralelas é falso (Gauss, Bolyai, Lobachevsky). | [0602a](0602a_paralelismo.ipynb) |
+| Icosaedro truncado | Sólido de Arquimedes com 12 faces pentagonais e 20 hexagonais ($V = 60$, $A = 90$, $F = 32$), obtido truncando o icosaedro a $\frac{1}{3}$ de cada aresta. É o formato clássico da bola de futebol e da molécula C₆₀. | [0607a](0607a_poliedros_convexos.ipynb) |
 | Inclinação percentual | A tangente do ângulo de inclinação vezes 100: $\tan\theta \cdot 100\%$. Uma inclinação de 100% corresponde a 45°, e não a uma parede vertical. | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
 | Lugar geométrico | O conjunto de **todos** os pontos que têm uma certa propriedade, e **somente** eles. | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
 | Medida de um diedro | A medida do seu ângulo retilíneo (de qualquer seção reta). | [0605a](0605a_diedros.ipynb) |
@@ -53,17 +57,24 @@ Termos do módulo em ordem alfabética, com uma definição curta e o notebook e
 | Pé da perpendicular | O ponto $O$ onde uma reta perpendicular a um plano (ou a uma reta) encontra esse plano (ou essa reta). | [0603a](0603a_perpendicularidade.ipynb) |
 | Perpendicular comum | A única reta concorrente com duas retas reversas e perpendicular a ambas. | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
 | Planificação | As faces de uma figura "abertas" lado a lado num plano, como o papel antes de ser dobrado. Na planificação de um triedro, as três faces ficam em volta do vértice, e sobra uma folga de $360° - $ (soma das faces). | [0606a](0606a_triedros_e_angulos_poliedricos.ipynb) |
+| Planificação de um poliedro | Figura plana formada pelas faces de um poliedro, ligadas pelas arestas, que pode ser **dobrada** para montá-lo. O cubo tem 11 planificações diferentes. | [0607a](0607a_poliedros_convexos.ipynb) |
 | Plano mediador | Plano perpendicular a um segmento $AB$ pelo seu ponto médio: o lugar geométrico dos pontos equidistantes de $A$ e $B$. | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
 | Planos bissetores | Os dois planos formados pelos pontos equidistantes de dois planos secantes. Contêm a reta de interseção e são perpendiculares entre si. | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
 | Planos paralelos | Planos sem ponto em comum. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
 | Planos perpendiculares | Dois planos tais que um deles contém uma reta perpendicular ao outro: $\alpha \perp \beta$. | [0603a](0603a_perpendicularidade.ipynb) |
 | Planos secantes | Planos distintos que se cortam numa reta. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
+| Poliedro | Sólido limitado por um número finito de polígonos (as faces), em que cada lado de uma face é lado de **exatamente duas** faces e duas faces com um lado em comum não estão no mesmo plano. | [0607a](0607a_poliedros_convexos.ipynb) |
+| Poliedro convexo | Poliedro em que o plano de **cada** face deixa todo o resto do poliedro de um mesmo lado. Satisfaz a Relação de Euler. | [0607a](0607a_poliedros_convexos.ipynb) |
+| Poliedro de Platão | Poliedro em que todas as faces têm o mesmo número $n$ de arestas, todos os vértices têm o mesmo número $m$ de arestas e vale a Relação de Euler. Só existem cinco classes: $(n, m) = (3,3), (3,4), (3,5), (4,3), (5,3)$. | [0607a](0607a_poliedros_convexos.ipynb) |
+| Poliedro dual | Poliedro obtido marcando um ponto no centro de cada face e ligando os centros de faces vizinhas. Troca $V$ e $F$ e mantém $A$: cubo ↔ octaedro, dodecaedro ↔ icosaedro, tetraedro ↔ tetraedro. | [0607a](0607a_poliedros_convexos.ipynb) |
+| Poliedro regular | Poliedro convexo com todas as faces polígonos regulares congruentes e todos os ângulos poliédricos congruentes. Só existem cinco: tetraedro, octaedro, icosaedro, cubo e dodecaedro. Todo regular é de Platão, mas nem todo de Platão é regular. | [0607a](0607a_poliedros_convexos.ipynb) |
 | Postulado | Afirmação aceita sem demonstração; as "regras do jogo" da Geometria. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
 | Postulado da inclusão | Se uma reta tem dois pontos distintos num plano, ela está contida nele. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
 | Postulado da interseção | Se dois planos distintos têm um ponto em comum, eles têm uma reta em comum passando por esse ponto. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
 | Postulado das paralelas (de Euclides) | Por um ponto fora de uma reta passa uma única reta paralela a ela. | [0602a](0602a_paralelismo.ipynb) |
 | Projeção ortogonal | A projeção de um ponto $P$ sobre um plano $\alpha$ é o pé $P'$ da perpendicular a $\alpha$ por $P$; a de uma figura é o conjunto das projeções de todos os seus pontos. | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
 | Projetante | A reta $PP'$ que liga um ponto $P$ à sua projeção ortogonal $P'$. | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
+| Relação de Euler | Em todo poliedro convexo, $V - A + F = 2$. Não vale para todos os não convexos, e números que a satisfazem não garantem que o poliedro exista. | [0607a](0607a_poliedros_convexos.ipynb) |
 | Reta concorrente (secante) a um plano | Reta com exatamente um ponto em comum com o plano: ela "fura" o plano. | [0602a](0602a_paralelismo.ipynb) |
 | Reta de maior declive | Reta de um plano $\alpha$ perpendicular à reta de interseção $i$ de $\alpha$ com outro plano $\beta$. Entre as retas de $\alpha$, é a que forma o **maior** ângulo com $\beta$. | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
 | Reta oblíqua a um plano | Reta concorrente com o plano que não é perpendicular a ele. | [0603a](0603a_perpendicularidade.ipynb) |
@@ -81,16 +92,21 @@ Termos do módulo em ordem alfabética, com uma definição curta e o notebook e
 | Semiespaço | Cada uma das duas partes em que um plano divide o espaço. | [0605a](0605a_diedros.ipynb) |
 | Semiplano | Cada uma das duas partes em que uma reta $r$ divide um plano, junto com a própria reta $r$ (a **origem** do semiplano). | [0605a](0605a_diedros.ipynb) |
 | Semiplano bissetor | Semiplano com origem na aresta que divide um diedro em dois diedros adjacentes congruentes. Os seus pontos são equidistantes das duas faces. | [0605a](0605a_diedros.ipynb) |
+| Sólidos de Arquimedes | Poliedros convexos com faces regulares de dois ou mais tipos e todos os vértices iguais. Além das famílias infinitas de prismas e antiprismas, são 13, entre eles o cuboctaedro e o icosaedro truncado. | [0607a](0607a_poliedros_convexos.ipynb) |
+| Soma dos ângulos das faces | Em todo poliedro convexo, a soma dos ângulos internos de todas as faces é $S = (V - 2) \cdot 360°$: ela só depende do número de vértices. | [0607a](0607a_poliedros_convexos.ipynb) |
 | Superfície esférica | O conjunto dos pontos do espaço que estão a uma distância $R$ (o raio) de um ponto $C$ (o centro). | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
 | Teorema | Afirmação demonstrada a partir dos postulados e de outros teoremas. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
 | Teorema das três perpendiculares | Se $r \perp \alpha$ em $O$, $s \subset \alpha$ e $OM \perp s$ (com $M \in s$), então $PM \perp s$ para todo $P \in r$. | [0603a](0603a_perpendicularidade.ipynb) |
+| Teorema de Descartes | Em todo poliedro convexo, a soma dos defeitos de todos os vértices é 720°. É consequência da Relação de Euler: $360° \cdot V - (V - 2) \cdot 360° = 720°$. | [0607a](0607a_poliedros_convexos.ipynb) |
 | Teorema de Tales no espaço | Três planos paralelos cortados por duas transversais determinam segmentos proporcionais: $\frac{AB}{BC} = \frac{A'B'}{B'C'}$. | [0602a](0602a_paralelismo.ipynb) |
 | Teorema fundamental da perpendicularidade | Se uma reta forma 90° com **duas retas concorrentes** de um plano, ela é perpendicular ao plano. | [0603a](0603a_perpendicularidade.ipynb) |
+| Tetraedro, hexaedro, octaedro, dodecaedro, icosaedro | Nomes dos poliedros com 4, 6, 8, 12 e 20 faces. Quando regulares, são os cinco poliedros regulares (o hexaedro regular é o cubo). | [0607a](0607a_poliedros_convexos.ipynb) |
 | Transitividade do paralelismo | Se $a \parallel b$ e $b \parallel c$, então $a \parallel c$ (vale também no espaço). | [0602a](0602a_paralelismo.ipynb) |
 | Triângulo esférico | Figura que as faces de um triedro com vértice no centro de uma esfera marcam na superfície. Os lados correspondem às faces e os ângulos aos diedros; por isso a soma dos ângulos é maior que 180°. | [0606a](0606a_triedros_e_angulos_poliedricos.ipynb) |
 | Triedro | Figura formada por três semirretas $a$, $b$ e $c$ de mesma origem $V$, não coplanares, e pelos ângulos $a\hat{V}b$, $b\hat{V}c$ e $a\hat{V}c$. Notação: $V(a, b, c)$. Tem seis elementos: três faces e três diedros. | [0606a](0606a_triedros_e_angulos_poliedricos.ipynb) |
 | Triedro polar (suplementar) | Triedro $V(a', b', c')$ em que $a'$ é perpendicular ao plano da face $f_a$, do mesmo lado que $a$ (e o mesmo para $b'$ e $c'$). Suas faces e diedros são suplementos dos diedros e faces do original: $f'_a = 180° - d_a$ e $d'_a = 180° - f_a$. | [0606a](0606a_triedros_e_angulos_poliedricos.ipynb) |
 | Triedro trirretângulo | Triedro com as três faces retas, como o canto de uma sala ou o vértice de um cubo. É polar de si mesmo. | [0606a](0606a_triedros_e_angulos_poliedricos.ipynb) |
 | Triedros simétricos (espelhados) | Triedros com os mesmos seis elementos, mas "espelhados", como a mão direita e a esquerda: não dá para encaixar um no outro só girando. São congruentes. | [0606a](0606a_triedros_e_angulos_poliedricos.ipynb) |
+| Truncamento | Operação de "cortar os cantos" de um poliedro: cada vértice vira uma face nova, e cada face original vira um polígono com o dobro de lados (ou com o mesmo número de lados, se o corte for na metade das arestas). | [0607a](0607a_poliedros_convexos.ipynb) |
 | Verdadeira grandeza | Diz-se de uma figura cuja projeção ortogonal tem o mesmo tamanho e a mesma forma que ela; acontece quando a figura é paralela ao plano de projeção. | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
 | Vértice do triedro | O ponto $V$, origem comum das três arestas de um triedro. | [0606a](0606a_triedros_e_angulos_poliedricos.ipynb) |

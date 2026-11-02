@@ -48,6 +48,9 @@ v5 — notebook 05: semiplanos e diedros (desenho, diedro padrão, seção por u
 v6 — notebook 06: triedros (construção a partir das faces, planificação, triedro
      polar, medição dos seis elementos), ângulo poliédrico regular, desenho de
      triedros e ângulos poliédricos
+v7 — notebook 07: poliedros (Platão, exemplos não convexos, desenho, dual,
+     truncamento, convexidade, diedros), faces soltas, planificações (padrão dos
+     sólidos de Platão, a partir de quadrados, dobra e verificação de fechamento)
 
 Semiplanos e diedros
 --------------------
@@ -66,6 +69,28 @@ Os diedros d_a, d_b e d_c são os diedros de arestas a, b e c.
 Um ângulo poliédrico é dado pelo vértice e por uma lista de pontos, um em cada
 aresta, NA ORDEM em que as arestas aparecem ao redor do vértice. As faces são os
 ângulos entre arestas vizinhas (a última aresta é vizinha da primeira).
+
+Poliedros
+---------
+Um poliedro é dado por duas listas:
+- `vertices`: a lista de pontos (x, y, z);
+- `faces`: a lista de faces; cada face é uma lista de NÚMEROS de vértices (as
+  posições na lista `vertices`), em sentido anti-horário quando vista de fora do
+  poliedro. Assim, o vetor normal de cada face aponta para fora.
+Exemplo: um tetraedro com vertices = [P0, P1, P2, P3] pode ter
+    faces = [[0, 2, 1], [0, 1, 3], [1, 2, 3], [0, 3, 2]].
+
+Planificações
+-------------
+Uma planificação é um dicionário com quatro listas do mesmo tamanho (uma posição
+para cada face):
+- "faces": os vértices de cada face, como pontos 3D no plano z = 0;
+- "pais": o número da face "mãe" (à qual esta face está presa), ou None para a
+  face que fica fixa;
+- "dobradicas": a aresta compartilhada com a mãe, como um par de pontos (na
+  posição aberta);
+- "angulos": o ângulo de dobra, em graus (180° menos o diedro do sólido naquela
+  aresta).
 """
 
 # ==================================================================================
@@ -245,6 +270,165 @@ def _conferir_face(face: float, mensagem: str) -> None:
     """Levanta ValueError com a mensagem dada se a face não estiver entre 0° e 180°."""
     if not 0 < face < 180:
         raise ValueError(mensagem)
+
+
+def _normal_da_face(pontos: Sequence[Vetor3D]) -> np.ndarray:
+    """Devolve o vetor normal (de comprimento 1) de uma face plana e convexa.
+
+    Com os vértices em sentido anti-horário, o produto vetorial de dois lados que
+    saem do primeiro vértice aponta para o lado de quem vê a face nesse sentido.
+    Numa face orientada "para fora", o normal aponta para fora do poliedro.
+    """
+    p0, p1, p2 = (_como_vetor(p) for p in pontos[:3])
+    return _normalizar(np.cross(p1 - p0, p2 - p0))
+
+
+def _arestas_do_poliedro(
+    faces: Sequence[Sequence[int]],
+) -> dict[tuple[int, int], list[int]]:
+    """Para cada aresta (i, j), com i < j, devolve a lista das faces que a contêm.
+
+    Cada face é percorrida lado a lado; o último vértice se liga ao primeiro. Num
+    poliedro, toda aresta aparece em exatamente duas faces.
+    """
+    arestas: dict[tuple[int, int], list[int]] = {}
+    for numero_da_face, face in enumerate(faces):
+        for k in range(len(face)):
+            i, j = face[k], face[(k + 1) % len(face)]
+            aresta = (min(i, j), max(i, j))
+            arestas.setdefault(aresta, []).append(numero_da_face)
+    return arestas
+
+
+def _ordenar_em_volta(
+    pontos: np.ndarray, indices: Sequence[int], normal: np.ndarray
+) -> list[int]:
+    """Ordena os vértices de uma face em sentido anti-horário, vistos do lado para
+    onde o `normal` aponta.
+
+    Medimos o ângulo de cada vértice em volta do centro da face (com seno e
+    cosseno, como no ciclo trigonométrico) e ordenamos pelo ângulo.
+    """
+    centro = pontos[list(indices)].mean(axis=0)
+    u = _normalizar(pontos[indices[0]] - centro)
+    v = np.cross(normal, u)
+    angulos = {
+        i: np.arctan2(np.dot(pontos[i] - centro, v), np.dot(pontos[i] - centro, u))
+        for i in indices
+    }
+    return sorted(indices, key=lambda i: angulos[i])
+
+
+def _faces_do_fecho_convexo(pontos: np.ndarray) -> list[list[int]]:
+    """Encontra as faces do poliedro convexo que tem esses pontos como vértices.
+
+    Para cada trio de vértices, olhamos o plano que passa por eles. Se todos os
+    outros vértices ficam de um mesmo lado desse plano, ele contém uma face: a face
+    é formada por todos os vértices que estão no plano, ordenados em sentido
+    anti-horário quando vistos de fora. É a definição de poliedro convexo (cada
+    face deixa o resto do poliedro de um lado só) virando um algoritmo.
+    """
+    quantidade = len(pontos)
+    # Uma folga proporcional ao tamanho do sólido, para os erros de arredondamento.
+    escala = float(np.max(np.linalg.norm(pontos - pontos.mean(axis=0), axis=1)))
+    folga = 1e-7 * escala
+    faces: list[list[int]] = []
+    ja_encontradas: set[frozenset[int]] = set()
+    for i in range(quantidade):
+        for j in range(i + 1, quantidade):
+            for k in range(j + 1, quantidade):
+                normal = np.cross(pontos[j] - pontos[i], pontos[k] - pontos[i])
+                if np.linalg.norm(normal) <= folga * escala:
+                    continue  # três pontos colineares não determinam um plano
+                normal = _normalizar(normal)
+                # Distância (com sinal) de cada vértice ao plano do trio.
+                distancias = (pontos - pontos[i]) @ normal
+                if np.all(distancias >= -folga):
+                    # Todos do lado para onde o normal aponta: invertemos o normal
+                    # para que ele aponte para fora do poliedro.
+                    normal, distancias = -normal, -distancias
+                elif not np.all(distancias <= folga):
+                    continue  # há vértices dos dois lados: não é face
+                no_plano = frozenset(np.flatnonzero(np.abs(distancias) <= folga))
+                if no_plano not in ja_encontradas:
+                    ja_encontradas.add(no_plano)
+                    indices = sorted(int(n) for n in no_plano)
+                    faces.append(_ordenar_em_volta(pontos, indices, normal))
+    return faces
+
+
+def _vizinhos_em_volta(
+    faces: Sequence[Sequence[int]], vertice: int
+) -> tuple[list[int], list[int]]:
+    """Percorre, em sentido anti-horário (visto de fora), o que está em volta de um
+    vértice do poliedro.
+
+    Devolve duas listas: os vértices vizinhos (ligados ao vértice por uma aresta) e
+    as faces que contêm o vértice. A face na posição k fica entre os vizinhos das
+    posições k e k + 1.
+
+    Como cada face está em sentido anti-horário, uma face com ... → p → vértice →
+    q → ... ocupa, em volta do vértice, o trecho que vai de q até p. A próxima face
+    é a que começa em p: assim "andamos" de face em face até dar a volta.
+    """
+    # seguinte[q] = (p, número da face): a face que vai do vizinho q ao vizinho p.
+    seguinte: dict[int, tuple[int, int]] = {}
+    for numero_da_face, face in enumerate(faces):
+        if vertice in face:
+            posicao = list(face).index(vertice)
+            p = face[posicao - 1]
+            q = face[(posicao + 1) % len(face)]
+            seguinte[q] = (p, numero_da_face)
+
+    vizinhos: list[int] = []
+    faces_em_volta: list[int] = []
+    atual = next(iter(seguinte))
+    for _ in range(len(seguinte)):
+        vizinhos.append(atual)
+        atual, numero_da_face = seguinte[atual]
+        faces_em_volta.append(numero_da_face)
+    return vizinhos, faces_em_volta
+
+
+def _poligono_regular(inicio: Vetor3D, fim: Vetor3D, lados: int) -> list[np.ndarray]:
+    """Devolve os vértices do polígono regular, no plano z = 0, cujo primeiro lado
+    vai de `inicio` até `fim`, construído à esquerda desse lado (sentido
+    anti-horário, visto de cima).
+
+    Andamos lado a lado: em cada vértice, o caminho vira para a esquerda pelo
+    ângulo externo do polígono, 360° / lados.
+    """
+    giro = 2 * np.pi / lados
+    rotacao = np.array([
+        [np.cos(giro), -np.sin(giro), 0.0],
+        [np.sin(giro), np.cos(giro), 0.0],
+        [0.0, 0.0, 1.0],
+    ])
+    vertices = [_como_vetor(inicio), _como_vetor(fim)]
+    passo = vertices[1] - vertices[0]
+    while len(vertices) < lados:
+        passo = rotacao @ passo
+        vertices.append(vertices[-1] + passo)
+    return vertices
+
+
+def _matriz_de_rotacao(eixo: Vetor3D, angulo: float) -> np.ndarray:
+    """Matriz que gira um vetor em torno de `eixo` por `angulo` (em radianos).
+
+    É a fórmula de Rodrigues: um vetor se decompõe numa parte ao longo do eixo (que
+    não muda) e numa parte perpendicular a ele (que gira como no plano).
+    """
+    e = _normalizar(eixo)
+    produto_vetorial = np.array([
+        [0.0, -e[2], e[1]],
+        [e[2], 0.0, -e[0]],
+        [-e[1], e[0], 0.0],
+    ])
+    return (
+        np.cos(angulo) * np.eye(3)
+        + np.sin(angulo) * produto_vetorial
+        + (1 - np.cos(angulo)) * np.outer(e, e)
+    )
 
 
 # ==================================================================================
@@ -2880,6 +3064,714 @@ def desenhar_esfera(
     return fig
 
 
+# --- Construtores de poliedros (devolvem dados, não desenham) ---
+def poliedro_de_platao(
+    nome: str, aresta: float = 2
+) -> tuple[list[tuple[float, float, float]], list[list[int]]]:
+    """Devolve os vértices e as faces de um dos cinco poliedros de Platão regulares.
+
+    O poliedro fica centrado na origem, com todas as arestas medindo `aresta`. Ele
+    vem no formato (vertices, faces) explicado no início deste arquivo: cada face é
+    uma lista de números de vértices, em sentido anti-horário visto de fora.
+
+    Esta função não desenha nada. As contas internas usam coordenadas e vetores,
+    assunto do módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        nome: "tetraedro", "cubo" (ou "hexaedro"), "octaedro", "dodecaedro" ou
+            "icosaedro".
+        aresta: medida da aresta.
+
+    Retorna:
+        Uma tupla (vertices, faces). No cubo, os vértices vêm na ordem A, B, ..., H
+        da convenção do módulo (base ABCD embaixo, EFGH em cima).
+
+    Levanta:
+        ValueError: se o nome não for de um poliedro de Platão.
+
+    Exemplo:
+        >>> vertices, faces = poliedro_de_platao("octaedro")
+        >>> len(vertices), len(faces)
+        (6, 8)
+    """
+    # A razão áurea aparece nas coordenadas do dodecaedro e do icosaedro.
+    phi = (1 + np.sqrt(5)) / 2
+    nome = nome.lower()
+    if nome == "tetraedro":
+        # Quatro vértices alternados de um cubo: aresta 2√2.
+        pontos = [(1, 1, 1), (1, -1, -1), (-1, 1, -1), (-1, -1, 1)]
+        aresta_original = 2 * np.sqrt(2)
+    elif nome in ("cubo", "hexaedro"):
+        # Usamos os vértices A, ..., H do módulo, com o centro do cubo na origem.
+        metade = aresta / 2
+        pontos = list(vertices_do_cubo(aresta, (-metade, -metade, -metade)).values())
+        aresta_original = aresta
+    elif nome == "octaedro":
+        # Os seis pontos a uma unidade da origem sobre os eixos: aresta √2.
+        pontos = [(1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)]
+        aresta_original = np.sqrt(2)
+    elif nome == "icosaedro":
+        # Três "retângulos áureos" perpendiculares entre si: aresta 2.
+        pontos = []
+        for a in (-1, 1):
+            for b in (-phi, phi):
+                pontos += [(0, a, b), (a, b, 0), (b, 0, a)]
+        aresta_original = 2
+    elif nome == "dodecaedro":
+        # Os 8 vértices de um cubo e mais 12 pontos com a razão áurea: aresta 2/φ.
+        pontos = [(x, y, z) for x in (-1, 1) for y in (-1, 1) for z in (-1, 1)]
+        for a in (-1 / phi, 1 / phi):
+            for b in (-phi, phi):
+                pontos += [(0, a, b), (a, b, 0), (b, 0, a)]
+        aresta_original = 2 / phi
+    else:
+        raise ValueError(
+            "Poliedro desconhecido. Use: tetraedro, cubo, octaedro, dodecaedro ou "
+            "icosaedro."
+        )
+
+    # Ampliamos (ou reduzimos) o sólido para que a aresta tenha a medida pedida.
+    pontos = np.array(pontos, dtype=float) * (aresta / aresta_original)
+    faces = _faces_do_fecho_convexo(pontos)
+    return [_como_ponto(p) for p in pontos], faces
+
+
+def poliedro_exemplo(
+    nome: str, tamanho: float = 2
+) -> tuple[list[tuple[float, float, float]], list[list[int]]]:
+    """Devolve um poliedro NÃO convexo (com faces convexas), para comparação.
+
+    Os dois exemplos:
+    - "cubo_com_cavidade": um cubo de aresta `tamanho` cuja face de cima foi trocada
+      por uma pirâmide quadrada "afundada" para dentro, com a ponta no centro do
+      cubo. Tem V = 9, A = 16 e F = 9. As faces 0 a 4 são a base e as paredes; as
+      faces 5 a 8 são os triângulos da cavidade.
+    - "moldura": uma moldura quadrada com um furo quadrado no meio (lado externo
+      `tamanho`, furo com metade desse lado). Tem V = 16, A = 32 e F = 16. As faces
+      0 a 3 são os trapézios de cima, 4 a 7 os de baixo, 8 a 11 os retângulos de
+      fora e 12 a 15 os retângulos de dentro do furo.
+
+    O formato é o mesmo de `poliedro_de_platao`: faces em sentido anti-horário
+    vistas de fora. Esta função não desenha nada; as contas internas usam
+    coordenadas, assunto do módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        nome: "cubo_com_cavidade" ou "moldura".
+        tamanho: medida da aresta do cubo ou do lado externo da moldura.
+
+    Retorna:
+        Uma tupla (vertices, faces).
+
+    Levanta:
+        ValueError: se o nome não for de um dos exemplos.
+
+    Exemplo:
+        >>> vertices, faces = poliedro_exemplo("moldura")
+        >>> len(vertices), len(faces)
+        (16, 16)
+    """
+    m = tamanho / 2
+    if nome == "cubo_com_cavidade":
+        # Vértices 0 a 7: o cubo (A, ..., H do módulo); vértice 8: a ponta afundada.
+        pontos = list(vertices_do_cubo(tamanho, (-m, -m, -m)).values())
+        pontos.append((0.0, 0.0, 0.0))
+        faces = [
+            [0, 3, 2, 1],  # base ABCD (vista de baixo)
+            [0, 1, 5, 4],  # parede ABFE
+            [1, 2, 6, 5],  # parede BCGF
+            [2, 3, 7, 6],  # parede CDHG
+            [3, 0, 4, 7],  # parede DAEH
+            [4, 5, 8], [5, 6, 8], [6, 7, 8], [7, 4, 8],  # a cavidade
+        ]
+    elif nome == "moldura":
+        externo, interno, altura = m, m / 2, m / 4
+        cantos = [(-1, -1), (1, -1), (1, 1), (-1, 1)]  # anti-horário, visto de cima
+        # Vértices: 0-3 fora/embaixo, 4-7 fora/em cima, 8-11 dentro/embaixo,
+        # 12-15 dentro/em cima.
+        pontos = []
+        for meio_lado in (externo, interno):
+            for z in (-altura, altura):
+                pontos += [(meio_lado * x, meio_lado * y, z) for x, y in cantos]
+        faces = []
+        for k in range(4):
+            s = (k + 1) % 4  # o canto seguinte
+            faces.append([4 + k, 4 + s, 12 + s, 12 + k])  # trapézio de cima
+        for k in range(4):
+            s = (k + 1) % 4
+            faces.append([k, 8 + k, 8 + s, s])  # trapézio de baixo
+        for k in range(4):
+            s = (k + 1) % 4
+            faces.append([k, s, 4 + s, 4 + k])  # retângulo de fora
+        for k in range(4):
+            s = (k + 1) % 4
+            faces.append([8 + s, 8 + k, 12 + k, 12 + s])  # retângulo de dentro
+    else:
+        raise ValueError("Exemplo desconhecido. Use: cubo_com_cavidade ou moldura.")
+    return [_como_ponto(p) for p in pontos], faces
+
+
+def poliedro_dual(
+    vertices: Sequence[Vetor3D], faces: Sequence[Sequence[int]]
+) -> tuple[list[tuple[float, float, float]], list[list[int]]]:
+    """Devolve o poliedro dual: troca vértices por faces e faces por vértices.
+
+    Cada face do poliedro original vira um vértice do dual, no centro da face (a
+    média dos vértices dela). Cada vértice do original vira uma face do dual, que
+    liga os centros das faces que se encontram nele, na ordem em que elas aparecem
+    em volta do vértice (anti-horária, vista de fora).
+
+    Esta função não desenha nada. As contas internas usam coordenadas, assunto do
+    módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        vertices: os vértices do poliedro original.
+        faces: as faces do original, no formato explicado no início do arquivo.
+
+    Retorna:
+        Uma tupla (vertices, faces) com o dual. O vértice k do dual é o centro da
+        face k do original, e a face k do dual corresponde ao vértice k do
+        original.
+
+    Exemplo:
+        >>> octaedro = poliedro_dual(*poliedro_de_platao("cubo"))
+        >>> len(octaedro[0]), len(octaedro[1])
+        (6, 8)
+    """
+    pontos = [_como_vetor(v) for v in vertices]
+    centros = [np.mean([pontos[i] for i in face], axis=0) for face in faces]
+    # Em volta de cada vértice, as faces já vêm na ordem certa.
+    novas_faces = [_vizinhos_em_volta(faces, i)[1] for i in range(len(pontos))]
+    return [_como_ponto(c) for c in centros], novas_faces
+
+
+def truncar_poliedro(
+    vertices: Sequence[Vetor3D], faces: Sequence[Sequence[int]], fracao: float
+) -> tuple[list[tuple[float, float, float]], list[list[int]]]:
+    """"Corta os cantos" de um poliedro: cada vértice é trocado por uma face nova.
+
+    Em cada aresta, marcamos dois pontos, cada um a uma `fracao` do comprimento a
+    partir de uma das pontas. O corte em volta de um vértice passa pelos pontos
+    marcados nas arestas que saem dele. Resultado:
+    - cada face original vira um polígono com o dobro de lados;
+    - cada vértice original vira uma face nova, com tantos lados quantas arestas
+      saíam dele.
+    Com `fracao = 0.5`, os dois pontos de cada aresta coincidem (o ponto médio) e
+    viram um só; as faces originais mantêm o número de lados. Por exemplo, o cubo
+    vira o cuboctaedro.
+
+    Esta função não desenha nada. As contas internas usam coordenadas, assunto do
+    módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        vertices: os vértices do poliedro original.
+        faces: as faces do original, no formato explicado no início do arquivo.
+        fracao: a parte de cada aresta cortada em cada ponta, entre 0 (exclusive)
+            e 0,5. Com 1/3, as arestas novas e as que sobraram ficam iguais nos
+            sólidos de Platão.
+
+    Retorna:
+        Uma tupla (vertices, faces) com o poliedro truncado. As faces que vieram
+        das faces originais vêm primeiro, na mesma ordem; depois, as faces novas,
+        uma para cada vértice original.
+
+    Levanta:
+        ValueError: se a fração estiver fora do intervalo (0; 0,5].
+
+    Exemplo:
+        >>> bola = truncar_poliedro(*poliedro_de_platao("icosaedro"), 1 / 3)
+        >>> len(bola[0]), len(bola[1])
+        (60, 32)
+    """
+    if not 0 < fracao <= 0.5 + TOLERANCIA:
+        raise ValueError("A fração de truncamento deve estar entre 0 (exclusive) e 0,5.")
+    pontos = [_como_vetor(v) for v in vertices]
+    no_meio = abs(fracao - 0.5) <= TOLERANCIA
+
+    # corte[(i, j)] é o número do ponto marcado na aresta ij perto do vértice i.
+    novos_pontos: list[np.ndarray] = []
+    corte: dict[tuple[int, int], int] = {}
+    for i, j in _arestas_do_poliedro(faces):
+        if no_meio:
+            # Os dois pontos coincidem no ponto médio: guardamos um só.
+            corte[(i, j)] = corte[(j, i)] = len(novos_pontos)
+            novos_pontos.append((pontos[i] + pontos[j]) / 2)
+        else:
+            corte[(i, j)] = len(novos_pontos)
+            novos_pontos.append(pontos[i] + fracao * (pontos[j] - pontos[i]))
+            corte[(j, i)] = len(novos_pontos)
+            novos_pontos.append(pontos[j] + fracao * (pontos[i] - pontos[j]))
+
+    novas_faces: list[list[int]] = []
+    # Cada face original perde os cantos: em cada lado i → j, ficam o ponto perto
+    # de i e o ponto perto de j (ou só o ponto médio, se eles coincidirem).
+    for face in faces:
+        nova_face = []
+        for k in range(len(face)):
+            i, j = face[k], face[(k + 1) % len(face)]
+            nova_face.append(corte[(i, j)])
+            if not no_meio:
+                nova_face.append(corte[(j, i)])
+        novas_faces.append(nova_face)
+    # Cada vértice vira uma face, com os pontos de corte das arestas que saem dele,
+    # na ordem em que os vizinhos aparecem em volta do vértice.
+    for i in range(len(pontos)):
+        vizinhos, _ = _vizinhos_em_volta(faces, i)
+        novas_faces.append([corte[(i, j)] for j in vizinhos])
+    return [_como_ponto(p) for p in novos_pontos], novas_faces
+
+
+# --- Planificações ---
+def _montar_planificacao(
+    lados: int, aresta: float, pecas: Sequence[tuple[int, int]], angulo: float
+) -> dict[str, list]:
+    """Monta uma planificação de polígonos regulares iguais.
+
+    A face 0 é fixa. Cada peça (mae, lado) acrescenta uma face nova presa ao lado
+    número `lado` da face `mae` (o lado k vai do vértice k ao vértice k + 1). Todas
+    as dobras têm o mesmo ângulo (em graus).
+    """
+    faces = [_poligono_regular((0, 0, 0), (aresta, 0, 0), lados)]
+    pais: list[int | None] = [None]
+    dobradicas: list[tuple | None] = [None]
+    for mae, lado in pecas:
+        contorno = faces[mae]
+        inicio, fim = contorno[lado], contorno[(lado + 1) % len(contorno)]
+        # A face nova começa pelo mesmo lado, percorrido ao contrário: assim ela é
+        # construída do lado de fora da face mãe.
+        faces.append(_poligono_regular(fim, inicio, lados))
+        pais.append(mae)
+        dobradicas.append((_como_ponto(inicio), _como_ponto(fim)))
+    return {
+        "faces": [[_como_ponto(p) for p in face] for face in faces],
+        "pais": pais,
+        "dobradicas": dobradicas,
+        "angulos": [0.0] + [angulo] * len(pecas),
+    }
+
+
+def planificacao_padrao(nome: str, aresta: float = 2) -> dict[str, list]:
+    """Devolve a planificação clássica de um poliedro de Platão.
+
+    Uma planificação é um dicionário com quatro listas do mesmo tamanho, uma
+    posição para cada face:
+    - "faces": os vértices de cada face, como pontos 3D no plano z = 0;
+    - "pais": o número da face "mãe" (à qual esta face está presa) ou None para a
+      face que fica fixa;
+    - "dobradicas": a aresta compartilhada com a mãe, como um par de pontos (na
+      posição aberta), ou None para a face fixa;
+    - "angulos": o ângulo de dobra, em graus: 180° menos o diedro do sólido.
+
+    As planificações:
+    - "tetraedro": um triângulo central com três triângulos presos nos seus lados;
+    - "cubo": a "cruz" (quatro quadrados em fila e um em cima e outro embaixo do
+      segundo);
+    - "octaedro": uma faixa de 6 triângulos alternados, com um triângulo preso
+      acima e outro abaixo da faixa;
+    - "dodecaedro": duas "flores" (um pentágono com 5 pentágonos em volta) ligadas
+      por uma aresta;
+    - "icosaedro": uma faixa de 10 triângulos, com 5 triângulos presos em cima e 5
+      embaixo.
+
+    Esta função não desenha nada. As contas internas usam coordenadas, assunto do
+    módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        nome: "tetraedro", "cubo" (ou "hexaedro"), "octaedro", "dodecaedro" ou
+            "icosaedro".
+        aresta: medida da aresta.
+
+    Retorna:
+        A planificação, no formato descrito acima.
+
+    Levanta:
+        ValueError: se o nome não for de um poliedro de Platão.
+
+    Exemplo:
+        >>> p = planificacao_padrao("cubo")
+        >>> len(p["faces"]), p["angulos"][1]
+        (6, 90.0)
+    """
+    # Diedros exatos dos sólidos de Platão (em graus). O do tetraedro é o
+    # arco-cosseno de 1/3, calculado no notebook 06.
+    diedros = {
+        "tetraedro": np.degrees(np.arccos(1 / 3)),         # 70,5288°
+        "octaedro": np.degrees(np.arccos(-1 / 3)),         # 109,4712°
+        "dodecaedro": np.degrees(np.arccos(-1 / np.sqrt(5))),  # 116,5651°
+        "icosaedro": np.degrees(np.arccos(-np.sqrt(5) / 3)),   # 138,1897°
+    }
+    nome = nome.lower()
+    if nome in ("cubo", "hexaedro"):
+        # A cruz: a fila (0, 1), (1, 1), (2, 1), (3, 1), com (1, 0) e (1, 2) presos
+        # no segundo quadrado. Começamos pelo segundo quadrado, que fica fixo.
+        cruz = [(1, 1), (0, 1), (2, 1), (3, 1), (1, 0), (1, 2)]
+        return planificacao_de_quadrados(cruz, aresta)
+    if nome not in diedros:
+        raise ValueError(
+            "Poliedro desconhecido. Use: tetraedro, cubo, octaedro, dodecaedro ou "
+            "icosaedro."
+        )
+
+    # Cada peça é (face mãe, lado da mãe ao qual a face nova fica presa).
+    if nome == "tetraedro":
+        pecas, lados = [(0, 0), (0, 1), (0, 2)], 3
+    elif nome == "octaedro":
+        # Faixa: as faces 0 a 5 alternam ponta para cima e ponta para baixo. As
+        # faces 6 e 7 ficam presas, uma acima e outra abaixo da faixa.
+        pecas = [(0, 1), (1, 1), (2, 2), (3, 1), (4, 2), (1, 2), (4, 1)]
+        lados = 3
+    elif nome == "icosaedro":
+        # Faixa de 10 triângulos (faces 0 a 9); depois, 5 presos em cima das faces
+        # com ponta para baixo e 5 embaixo das faces com ponta para cima.
+        pecas = [(0, 1)] + [(k, 1 if k % 2 == 1 else 2) for k in range(1, 9)]
+        pecas += [(k, 2) for k in range(1, 10, 2)]
+        pecas += [(0, 0)] + [(k, 1) for k in range(2, 10, 2)]
+        lados = 3
+    else:  # dodecaedro
+        # Flor 1: a face 0 com as faces 1 a 5 em volta. A face 6 (pétala da flor 2)
+        # fica presa à face 1; a face 7 (centro da flor 2) fica presa à face 6; as
+        # faces 8 a 11 completam a flor 2 em volta da face 7.
+        pecas = [(0, k) for k in range(5)] + [(1, 2), (6, 3)]
+        pecas += [(7, k) for k in range(1, 5)]
+        lados = 5
+    return _montar_planificacao(lados, aresta, pecas, 180 - diedros[nome])
+
+
+def planificacao_de_quadrados(
+    celulas: Sequence[tuple[int, int]], aresta: float = 2
+) -> dict[str, list]:
+    """Monta uma planificação de quadrados a partir das casas de um quadriculado.
+
+    Cada célula (coluna, linha) é um quadrado de lado `aresta`. A primeira célula
+    fica fixa. As outras são presas uma a uma, por busca em largura: cada célula
+    nova fica presa a uma vizinha (lado a lado) que já foi incluída. Todas as
+    dobras são de 90°, como nas dobras de uma caixa.
+
+    O formato da planificação está descrito em `planificacao_padrao`. Esta função
+    não desenha nada; as contas internas usam coordenadas, assunto do módulo 07.
+
+    Parâmetros:
+        celulas: lista de células (coluna, linha), por exemplo [(0, 0), (1, 0)].
+        aresta: medida do lado de cada quadrado.
+
+    Retorna:
+        A planificação, com uma face para cada célula, na mesma ordem.
+
+    Levanta:
+        ValueError: se houver células repetidas ou se os quadrados não estiverem
+            todos ligados lado a lado.
+
+    Exemplo:
+        >>> cruz = [(1, 0), (0, 1), (1, 1), (2, 1), (3, 1), (1, 2)]
+        >>> p = planificacao_de_quadrados(cruz)
+        >>> p["pais"]
+        [None, 2, 0, 2, 3, 2]
+    """
+    celulas = [tuple(c) for c in celulas]
+    if len(set(celulas)) != len(celulas):
+        raise ValueError("Há quadrados repetidos: cada célula deve aparecer uma vez.")
+    a = float(aresta)
+    numero = {celula: k for k, celula in enumerate(celulas)}
+    pais: list[int | None] = [None] * len(celulas)
+    dobradicas: list[tuple | None] = [None] * len(celulas)
+
+    # Busca em largura: começamos pela primeira célula e, a cada passo, prendemos
+    # as vizinhas ainda soltas da célula da vez.
+    incluidas = {0}
+    fila = [0]
+    while fila:
+        atual = fila.pop(0)
+        c, l = celulas[atual]
+        # Vizinha da direita, de cima, da esquerda e de baixo, cada uma com o lado
+        # comum (os dois cantos da dobradiça, na célula atual).
+        vizinhas = [
+            ((c + 1, l), ((c + 1) * a, l * a), ((c + 1) * a, (l + 1) * a)),
+            ((c, l + 1), (c * a, (l + 1) * a), ((c + 1) * a, (l + 1) * a)),
+            ((c - 1, l), (c * a, l * a), (c * a, (l + 1) * a)),
+            ((c, l - 1), (c * a, l * a), ((c + 1) * a, l * a)),
+        ]
+        for vizinha, (x1, y1), (x2, y2) in vizinhas:
+            if vizinha in numero and numero[vizinha] not in incluidas:
+                k = numero[vizinha]
+                incluidas.add(k)
+                fila.append(k)
+                pais[k] = atual
+                dobradicas[k] = ((x1, y1, 0.0), (x2, y2, 0.0))
+    if len(incluidas) != len(celulas):
+        raise ValueError("Os quadrados precisam estar ligados lado a lado.")
+
+    faces = [
+        [
+            (c * a, l * a, 0.0), ((c + 1) * a, l * a, 0.0),
+            ((c + 1) * a, (l + 1) * a, 0.0), (c * a, (l + 1) * a, 0.0),
+        ]
+        for c, l in celulas
+    ]
+    angulos = [0.0 if pai is None else 90.0 for pai in pais]
+    return {"faces": faces, "pais": pais, "dobradicas": dobradicas, "angulos": angulos}
+
+
+def dobrar_planificacao(
+    planificacao: dict[str, list], fracao: float
+) -> list[list[tuple[float, float, float]]]:
+    """Dobra uma planificação e devolve a posição de cada face.
+
+    Cada face gira em torno da sua dobradiça, em relação à face mãe, por `fracao`
+    do seu ângulo de dobra: com 0 a planificação fica aberta; com 1, totalmente
+    dobrada. Todas as faces dobram para o mesmo lado (para cima, no sentido de z).
+
+    A dobra é encadeada, como numa caixa de papel: uma face primeiro acompanha o
+    movimento da mãe (e da mãe da mãe, e assim por diante) e depois gira em torno
+    da sua própria dobradiça.
+
+    Esta função usa rotações no espaço, assunto do módulo 07 (Geometria Analítica)
+    e da Álgebra Linear.
+
+    Parâmetros:
+        planificacao: uma planificação, como as de `planificacao_padrao` ou de
+            `planificacao_de_quadrados`.
+        fracao: o quanto dobrar, de 0 (aberta) a 1 (fechada).
+
+    Retorna:
+        Uma lista de faces; cada face é uma lista de pontos (x, y, z).
+
+    Exemplo:
+        >>> p = planificacao_padrao("tetraedro")
+        >>> faces = dobrar_planificacao(p, 0.5)  # meio dobrada
+    """
+    faces = [[_como_vetor(p) for p in face] for face in planificacao["faces"]]
+    pais = planificacao["pais"]
+
+    # O movimento de cada face é guardado como (matriz, deslocamento): um ponto x
+    # vai para matriz · x + deslocamento.
+    movimentos: dict[int, tuple[np.ndarray, np.ndarray]] = {}
+
+    def movimento_da_face(k: int) -> tuple[np.ndarray, np.ndarray]:
+        """Calcula (e guarda) o movimento da face k, começando pelo da mãe."""
+        if k in movimentos:
+            return movimentos[k]
+        if pais[k] is None:
+            movimentos[k] = (np.eye(3), np.zeros(3))  # a face fixa não se mexe
+            return movimentos[k]
+        matriz_mae, deslocamento_mae = movimento_da_face(pais[k])
+
+        # O giro da face em torno da dobradiça ab, na posição aberta. A direção w
+        # vai da dobradiça para dentro da face; o eixo é escolhido para que w gire
+        # para cima (no sentido de z).
+        a, b = (_como_vetor(p) for p in planificacao["dobradicas"][k])
+        centro = np.mean(faces[k], axis=0)
+        d = _normalizar(b - a)
+        w = _normalizar((centro - a) - np.dot(centro - a, d) * d)
+        eixo = np.cross(w, (0, 0, 1))
+        giro = _matriz_de_rotacao(eixo, np.radians(fracao * planificacao["angulos"][k]))
+
+        # Primeiro gira em torno da dobradiça (x ↦ a + giro · (x − a)); depois faz o
+        # mesmo movimento da mãe.
+        matriz = matriz_mae @ giro
+        deslocamento = matriz_mae @ (a - giro @ a) + deslocamento_mae
+        movimentos[k] = (matriz, deslocamento)
+        return movimentos[k]
+
+    dobradas = []
+    for k, face in enumerate(faces):
+        matriz, deslocamento = movimento_da_face(k)
+        dobradas.append([_como_ponto(matriz @ p + deslocamento) for p in face])
+    return dobradas
+
+
+def planificacao_fecha(planificacao: dict[str, list]) -> bool:
+    """Diz se uma planificação "fecha" um sólido.
+
+    Uma planificação "fecha" quando, depois de dobrada, as faces não se sobrepõem.
+    A função dobra tudo e confere se os centros das faces ficaram todos em lugares
+    diferentes.
+
+    Esta função usa rotações e distâncias com coordenadas, assunto do módulo 07
+    (Geometria Analítica). Aqui ela serve apenas para conferir a sua resposta.
+
+    Parâmetros:
+        planificacao: uma planificação, como as de `planificacao_padrao` ou de
+            `planificacao_de_quadrados`.
+
+    Retorna:
+        True se nenhuma face terminar no mesmo lugar que outra; False caso
+        contrário.
+
+    Exemplo:
+        >>> fila = [(0, 0), (1, 0), (2, 0), (3, 0), (4, 0), (5, 0)]
+        >>> planificacao_fecha(planificacao_de_quadrados(fila))
+        False
+    """
+    dobradas = dobrar_planificacao(planificacao, 1)
+    centros = [np.mean(np.array(face), axis=0) for face in dobradas]
+    for i in range(len(centros)):
+        for j in range(i + 1, len(centros)):
+            if np.linalg.norm(centros[i] - centros[j]) <= 1e-6:
+                return False
+    return True
+
+
+# --- Desenhos de poliedros ---
+def _desenhar_linhas(
+    fig: go.Figure,
+    segmentos: Sequence[tuple[Vetor3D, Vetor3D]],
+    cor: str,
+    espessura: float = 4,
+) -> go.Figure:
+    """Desenha vários segmentos num único traço do Plotly (mais leve que um traço
+    por segmento). Um None entre dois segmentos "levanta a caneta"."""
+    x: list[float | None] = []
+    y: list[float | None] = []
+    z: list[float | None] = []
+    for inicio, fim in segmentos:
+        for ponto in (inicio, fim):
+            px, py, pz = _como_vetor(ponto)
+            x.append(px)
+            y.append(py)
+            z.append(pz)
+        x.append(None)
+        y.append(None)
+        z.append(None)
+    fig.add_trace(
+        go.Scatter3d(
+            x=x, y=y, z=z, mode="lines",
+            line=dict(color=cor, width=espessura),
+            hoverinfo="skip",
+        )
+    )
+    return fig
+
+
+def desenhar_faces(
+    fig: go.Figure,
+    faces: Sequence[Sequence[Vetor3D]],
+    cores: str | Sequence[str] | None = None,
+    opacidade: float = 0.6,
+    mostrar_arestas: bool = True,
+    cor_arestas: str | None = None,
+) -> go.Figure:
+    """Desenha uma lista de faces soltas (polígonos planos e convexos).
+
+    Serve para planificações abertas, meio dobradas ou fechadas: basta passar o
+    resultado de `dobrar_planificacao`.
+
+    Parâmetros:
+        fig: a figura.
+        faces: lista de faces; cada face é uma lista de pontos (x, y, z), na ordem
+            do contorno.
+        cores: uma cor só ou uma lista de cores, usada em ciclo (uma por face). Se
+            não for informada, usa em ciclo CORES["plano"],
+            CORES["plano_secundario"], CORES["plano_terciario"] e
+            CORES["solido"].
+        opacidade: opacidade das faces, de 0 a 1.
+        mostrar_arestas: se True, desenha o contorno de cada face.
+        cor_arestas: cor dos contornos. Se não for informada, usa CORES["apoio"].
+
+    Retorna:
+        A mesma figura, com as faces desenhadas.
+
+    Exemplo:
+        >>> p = planificacao_padrao("cubo")
+        >>> fig = desenhar_faces(fig, dobrar_planificacao(p, 0.5))
+    """
+    if cores is None:
+        cores = [
+            CORES["plano"], CORES["plano_secundario"], CORES["plano_terciario"],
+            CORES["solido"],
+        ]
+    elif isinstance(cores, str):
+        cores = [cores]
+
+    contornos = []
+    for k, face in enumerate(faces):
+        fig = desenhar_poligono(
+            fig, face, cor=cores[k % len(cores)], opacidade=opacidade,
+            mostrar_borda=False,
+        )
+        for i in range(len(face)):
+            contornos.append((face[i], face[(i + 1) % len(face)]))
+    if mostrar_arestas:
+        fig = _desenhar_linhas(fig, contornos, cor_arestas or CORES["apoio"], 3)
+    return fig
+
+
+def desenhar_poliedro(
+    fig: go.Figure,
+    vertices: Sequence[Vetor3D],
+    faces: Sequence[Sequence[int]],
+    cor: str | None = None,
+    colorir_por_lados: bool = False,
+    opacidade: float = 0.6,
+    mostrar_arestas: bool = True,
+    mostrar_vertices: bool = False,
+    rotulos: Sequence[str] | None = None,
+) -> go.Figure:
+    """Desenha um poliedro dado no formato (vertices, faces).
+
+    O formato está explicado no início deste arquivo: `vertices` é a lista de
+    pontos e cada face é uma lista de números de vértices.
+
+    Parâmetros:
+        fig: a figura.
+        vertices: os vértices, cada um como (x, y, z).
+        faces: as faces, cada uma como lista de números de vértices.
+        cor: cor de todas as faces. Se não for informada, usa CORES["solido"].
+        colorir_por_lados: se True, a cor depende do número de lados da face:
+            triângulos CORES["plano"], quadriláteros CORES["plano_secundario"],
+            pentágonos CORES["plano_terciario"], hexágonos CORES["destaque"] e
+            polígonos com 7 lados ou mais CORES["solido"]. Nesse caso, `cor` é
+            ignorada.
+        opacidade: opacidade das faces, de 0 a 1.
+        mostrar_arestas: se True, desenha as arestas.
+        mostrar_vertices: se True, marca os vértices com pontos.
+        rotulos: nomes dos vértices, na mesma ordem (opcional).
+
+    Retorna:
+        A mesma figura, com o poliedro desenhado.
+
+    Levanta:
+        ValueError: se a lista de rótulos não tiver um nome para cada vértice.
+
+    Exemplo:
+        >>> vertices, faces = poliedro_de_platao("icosaedro")
+        >>> fig = desenhar_poliedro(fig, vertices, faces, colorir_por_lados=True)
+    """
+    if rotulos is not None and len(rotulos) != len(vertices):
+        raise ValueError("A lista de rótulos precisa ter um nome para cada vértice.")
+    pontos = np.array([_como_vetor(v) for v in vertices])
+    cor_por_lados = {
+        3: CORES["plano"],
+        4: CORES["plano_secundario"],
+        5: CORES["plano_terciario"],
+        6: CORES["destaque"],
+    }
+
+    for face in faces:
+        if colorir_por_lados:
+            cor_da_face = cor_por_lados.get(len(face), CORES["solido"])
+        else:
+            cor_da_face = cor or CORES["solido"]
+        fig = desenhar_poligono(
+            fig, pontos[list(face)], cor=cor_da_face, opacidade=opacidade,
+            mostrar_borda=False,
+        )
+
+    if mostrar_arestas:
+        # Cada aresta é desenhada uma vez só, mesmo estando em duas faces.
+        segmentos = [(pontos[i], pontos[j]) for i, j in _arestas_do_poliedro(faces)]
+        fig = _desenhar_linhas(fig, segmentos, CORES["apoio"], 4)
+    if mostrar_vertices:
+        fig = desenhar_pontos(fig, pontos, tamanho=4)
+    if rotulos is not None:
+        # Cada nome fica um pouco para fora, na direção que vai do centro do
+        # poliedro até o vértice (como em desenhar_cubo).
+        centro = pontos.mean(axis=0)
+        raio = float(np.max(np.linalg.norm(pontos - centro, axis=1)))
+        for ponto, rotulo in zip(pontos, rotulos, strict=True):
+            para_fora = _normalizar(ponto - centro)
+            fig = adicionar_rotulo(fig, ponto + 0.12 * raio * para_fora, rotulo)
+    return fig
+
+
 # ==================================================================================
 # Funções de conferência
 # ==================================================================================
@@ -3420,3 +4312,85 @@ def planos_sao_perpendiculares(plano1: Plano, plano2: Plano) -> bool:
     # exatamente quando os dois vetores formam ângulo reto.
     produto = abs(np.dot(n1, n2))
     return bool(produto <= TOLERANCIA * np.linalg.norm(n1) * np.linalg.norm(n2))
+
+
+def poliedro_e_convexo(
+    vertices: Sequence[Vetor3D], faces: Sequence[Sequence[int]]
+) -> bool:
+    """Diz se um poliedro é convexo.
+
+    Segue a definição do notebook 07: o poliedro é convexo quando o plano de cada
+    face deixa todos os vértices do poliedro de um mesmo lado (ou sobre o plano).
+
+    Esta função usa vetores, assunto do módulo 07 (Geometria Analítica). Aqui ela
+    serve apenas para conferir a sua resposta.
+
+    Parâmetros:
+        vertices: os vértices, cada um como (x, y, z).
+        faces: as faces, cada uma como lista de números de vértices.
+
+    Retorna:
+        True se o poliedro for convexo; False caso contrário.
+
+    Exemplo:
+        >>> poliedro_e_convexo(*poliedro_de_platao("cubo"))
+        True
+        >>> poliedro_e_convexo(*poliedro_exemplo("moldura"))
+        False
+    """
+    pontos = np.array([_como_vetor(v) for v in vertices])
+    escala = float(np.max(np.linalg.norm(pontos - pontos.mean(axis=0), axis=1)))
+    folga = 1e-7 * escala
+    for face in faces:
+        normal = _normal_da_face(pontos[list(face)])
+        # Distância (com sinal) de cada vértice ao plano da face: o sinal diz de
+        # que lado do plano o vértice está.
+        distancias = (pontos - pontos[face[0]]) @ normal
+        if np.any(distancias > folga) and np.any(distancias < -folga):
+            return False
+    return True
+
+
+def diedros_do_poliedro(
+    vertices: Sequence[Vetor3D], faces: Sequence[Sequence[int]]
+) -> dict[tuple[int, int], float]:
+    """Mede o diedro de cada aresta de um poliedro convexo, em graus.
+
+    O diedro de uma aresta é formado pelas duas faces que a contêm (notebook 05).
+    A medida vem de `medir_angulo_do_diedro`, usando um vértice de cada face fora
+    da aresta. O resultado fica entre 0° e 180°, por isso a função serve para
+    poliedros convexos.
+
+    Esta função usa vetores, assunto do módulo 07 (Geometria Analítica). Aqui ela
+    serve apenas para conferir a sua resposta.
+
+    Parâmetros:
+        vertices: os vértices, cada um como (x, y, z).
+        faces: as faces, cada uma como lista de números de vértices.
+
+    Retorna:
+        Um dicionário {(i, j): medida}, com uma entrada para cada aresta, em que
+        i < j são os números dos vértices da aresta.
+
+    Levanta:
+        ValueError: se alguma aresta não estiver em exatamente duas faces.
+
+    Exemplo:
+        >>> diedros = diedros_do_poliedro(*poliedro_de_platao("cubo"))
+        >>> sorted({round(d, 4) for d in diedros.values()})
+        [90.0]
+    """
+    pontos = [_como_vetor(v) for v in vertices]
+    diedros = {}
+    for (i, j), faces_da_aresta in _arestas_do_poliedro(faces).items():
+        if len(faces_da_aresta) != 2:
+            raise ValueError(
+                "Cada aresta de um poliedro deve estar em exatamente duas faces."
+            )
+        # Um vértice de cada face que não esteja na aresta indica o lado da face.
+        p1, p2 = (
+            next(pontos[k] for k in faces[f] if k not in (i, j))
+            for f in faces_da_aresta
+        )
+        diedros[(i, j)] = medir_angulo_do_diedro(pontos[i], pontos[j], p1, p2)
+    return diedros
