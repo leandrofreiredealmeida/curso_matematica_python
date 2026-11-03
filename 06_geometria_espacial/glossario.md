@@ -4,6 +4,7 @@ Termos do módulo em ordem alfabética, com uma definição curta e o notebook e
 
 | Termo | Definição curta | Notebook |
 |---|---|---|
+| Altura do prisma | A distância $h$ entre os planos das bases. No prisma reto, é igual à aresta lateral; no oblíquo, $h = \ell \cdot \sin\theta$, em que $\theta$ é o ângulo entre a aresta lateral e o plano da base. | [0608a](0608a_prismas_e_paralelepipedos.ipynb) |
 | Ângulo entre dois planos | 0° se os planos são paralelos ou coincidentes; se são secantes, a medida do **menor** dos diedros que eles formam (entre 0° e 90°). É igual ao ângulo entre retas perpendiculares aos planos. | [0605a](0605a_diedros.ipynb) |
 | Ângulo entre duas retas | O menor ângulo formado por elas: entre 0° e 90°. Para retas reversas, é o ângulo entre uma delas e uma paralela à outra que a corta. | [0602a](0602a_paralelismo.ipynb) |
 | Ângulo entre reta e plano | 90° se a reta é perpendicular ao plano; 0° se é paralela a ele ou está contida nele; nos outros casos, o ângulo entre a reta e a sua projeção ortogonal sobre o plano (o menor ângulo que ela forma com as retas do plano). | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
@@ -11,8 +12,12 @@ Termos do módulo em ordem alfabética, com uma definição curta e o notebook e
 | Ângulo poliédrico convexo | Ângulo poliédrico em que o plano de cada face deixa todas as outras arestas do mesmo lado. A soma das faces é menor que 360°, e a soma dos diedros fica entre $(n-2) \cdot 180°$ e $n \cdot 180°$. | [0606a](0606a_triedros_e_angulos_poliedricos.ipynb) |
 | Ângulo retilíneo | O ângulo obtido numa seção reta de um diedro. A sua medida é a medida do diedro. | [0605a](0605a_diedros.ipynb) |
 | Área da projeção | Uma figura plana de área $S$ num plano que forma ângulo $\theta$ com $\beta$ tem projeção ortogonal sobre $\beta$ de área $S' = S \cos\theta$. Telhado: $S_{\text{telhado}} = S_{\text{planta}} / \cos\theta$. | [0605a](0605a_diedros.ipynb) |
+| Área lateral | A soma das áreas das faces laterais de um prisma: $S_\ell = 2p \cdot h$ no prisma reto e $S_\ell = 2p_{\text{seção reta}} \cdot \ell$ em qualquer prisma. | [0608a](0608a_prismas_e_paralelepipedos.ipynb) |
+| Área total | A área lateral mais as áreas das duas bases: $S_t = S_\ell + 2S_b$. No paralelepípedo retângulo $a \times b \times c$, $S = 2(ab + ac + bc)$; no cubo, $S = 6a^2$. | [0608a](0608a_prismas_e_paralelepipedos.ipynb) |
 | Aresta do diedro | A reta $r$, origem comum das duas faces de um diedro. | [0605a](0605a_diedros.ipynb) |
 | Arestas do triedro | As três semirretas $a$, $b$ e $c$ de um triedro $V(a, b, c)$. | [0606a](0606a_triedros_e_angulos_poliedricos.ipynb) |
+| Arestas laterais | Os lados das faces laterais de um prisma que ligam as duas bases. São paralelas e têm o mesmo comprimento. | [0608a](0608a_prismas_e_paralelepipedos.ipynb) |
+| Bases do prisma | Os dois polígonos congruentes, em planos paralelos, que limitam o prisma. O nome do prisma vem do polígono da base (triangular, quadrangular, pentagonal, hexagonal...). | [0608a](0608a_prismas_e_paralelepipedos.ipynb) |
 | Característica de Euler | O valor de $V - A + F$ de um poliedro. Vale 2 nos poliedros convexos, 0 num poliedro com um furo (como a moldura), −2 com dois furos, e assim por diante. É um dos pontos de partida da Topologia. | [0607a](0607a_poliedros_convexos.ipynb) |
 | Coincidentes (retas ou planos) | São o mesmo objeto: todos os pontos em comum. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
 | Colineares (pontos) | Pontos que pertencem a uma mesma reta. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
@@ -23,10 +28,12 @@ Termos do módulo em ordem alfabética, com uma definição curta e o notebook e
 | Congruência de triedros (FDF, DFD, FFF, DDD) | Dois triedros são congruentes quando há uma correspondência entre as arestas em que as faces e os diedros correspondentes são congruentes. Bastam três elementos: FDF, DFD, FFF ou DDD (este último sem análogo nos triângulos, porque triedros não têm tamanho). | [0606a](0606a_triedros_e_angulos_poliedricos.ipynb) |
 | Contida (reta num plano) | Todos os pontos da reta pertencem ao plano: $r \subset \alpha$. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
 | Coplanares | Pontos ou retas que pertencem a (ou estão contidos em) um mesmo plano. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
+| Cubo | Paralelepípedo retângulo com as 12 arestas iguais. É, ao mesmo tempo, um paralelepípedo retângulo e um romboedro. Com aresta $a$: diagonal da face $a\sqrt{2}$, diagonal $a\sqrt{3}$. | [0608a](0608a_prismas_e_paralelepipedos.ipynb) |
 | Cuboctaedro | Sólido de Arquimedes com 8 faces triangulares e 6 quadradas ($V = 12$, $A = 24$, $F = 14$), obtido truncando o cubo até a metade das arestas. | [0607a](0607a_poliedros_convexos.ipynb) |
 | Defeito angular | A diferença $360° - $ (soma das faces) num vértice: o quanto "falta" para o papel ficar plano. Descartes mostrou que, num poliedro convexo, a soma dos defeitos de todos os vértices é sempre 720°. | [0606a](0606a_triedros_e_angulos_poliedricos.ipynb) |
 | Desigualdade das faces | Em todo triedro, cada face é menor que a soma das outras duas ($f_a < f_b + f_c$ etc.). Junto com a soma das faces menor que 360°, é a condição para três ângulos serem as faces de um triedro. | [0606a](0606a_triedros_e_angulos_poliedricos.ipynb) |
 | Determinação de um plano | Um plano fica determinado por: três pontos não colineares; uma reta e um ponto fora dela; duas retas concorrentes; ou duas retas paralelas distintas. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
+| Diagonal do paralelepípedo | Segmento que liga dois vértices que não estão numa mesma face ($AG$, $BH$, $CE$, $DF$). As quatro se cortam no ponto médio de cada uma (o centro). No paralelepípedo retângulo, todas medem $d = \sqrt{a^2 + b^2 + c^2}$. | [0608a](0608a_prismas_e_paralelepipedos.ipynb) |
 | Diedro | Figura formada por dois semiplanos de mesma origem que não estão contidos num mesmo plano: $\mathrm{di}(\alpha\, r\, \beta)$. É o "ângulo" do espaço. | [0605a](0605a_diedros.ipynb) |
 | Diedro agudo, reto e obtuso | Diedro de medida menor que 90°, igual a 90° (faces em planos perpendiculares) ou maior que 90°, respectivamente. | [0605a](0605a_diedros.ipynb) |
 | Diedros adjacentes | Diedros com a mesma aresta e uma face em comum, sem sobreposição. | [0605a](0605a_diedros.ipynb) |
@@ -41,6 +48,7 @@ Termos do módulo em ordem alfabética, com uma definição curta e o notebook e
 | Distância entre retas reversas | O comprimento do segmento da perpendicular comum. É igual à distância entre os planos paralelos que contêm as duas retas. | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
 | Faces do diedro | Os dois semiplanos $\alpha$ e $\beta$ que formam um diedro. | [0605a](0605a_diedros.ipynb) |
 | Faces do triedro | Os três ângulos de um triedro. Cada face recebe o nome da aresta oposta: $f_a = b\hat{V}c$, $f_b = a\hat{V}c$, $f_c = a\hat{V}b$. A soma das faces é menor que 360°. | [0606a](0606a_triedros_e_angulos_poliedricos.ipynb) |
+| Faces laterais | As faces de um prisma que não são bases. São paralelogramos (retângulos, no prisma reto). | [0608a](0608a_prismas_e_paralelepipedos.ipynb) |
 | Faces, arestas e vértices de um poliedro | As **faces** são os polígonos que limitam o poliedro; as **arestas** são os lados das faces (cada uma comum a exatamente duas faces); os **vértices** são os vértices das faces, e em cada um há um ângulo poliédrico. Os seus números são indicados por $F$, $A$ e $V$. | [0607a](0607a_poliedros_convexos.ipynb) |
 | Feixe de planos | O conjunto de todos os planos que passam por uma mesma reta. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
 | Figura espacial | Figura cujos pontos não estão todos num mesmo plano. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
@@ -54,6 +62,9 @@ Termos do módulo em ordem alfabética, com uma definição curta e o notebook e
 | Lugar geométrico | O conjunto de **todos** os pontos que têm uma certa propriedade, e **somente** eles. | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
 | Medida de um diedro | A medida do seu ângulo retilíneo (de qualquer seção reta). | [0605a](0605a_diedros.ipynb) |
 | Paralelas (retas) | Retas coplanares sem ponto em comum (ou coincidentes). | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
+| Paralelepípedo | Prisma cujas bases são paralelogramos. As 6 faces são paralelogramos, e faces opostas são paralelas e congruentes. | [0608a](0608a_prismas_e_paralelepipedos.ipynb) |
+| Paralelepípedo retângulo (ortoedro) | Paralelepípedo com as 6 faces retangulares, como uma caixa de sapatos. | [0608a](0608a_prismas_e_paralelepipedos.ipynb) |
+| Paralelepípedo reto | Paralelepípedo com as arestas laterais perpendiculares às bases. | [0608a](0608a_prismas_e_paralelepipedos.ipynb) |
 | Pé da perpendicular | O ponto $O$ onde uma reta perpendicular a um plano (ou a uma reta) encontra esse plano (ou essa reta). | [0603a](0603a_perpendicularidade.ipynb) |
 | Perpendicular comum | A única reta concorrente com duas retas reversas e perpendicular a ambas. | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
 | Planificação | As faces de uma figura "abertas" lado a lado num plano, como o papel antes de ser dobrado. Na planificação de um triedro, as três faces ficam em volta do vértice, e sobra uma folga de $360° - $ (soma das faces). | [0606a](0606a_triedros_e_angulos_poliedricos.ipynb) |
@@ -72,6 +83,11 @@ Termos do módulo em ordem alfabética, com uma definição curta e o notebook e
 | Postulado da inclusão | Se uma reta tem dois pontos distintos num plano, ela está contida nele. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
 | Postulado da interseção | Se dois planos distintos têm um ponto em comum, eles têm uma reta em comum passando por esse ponto. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
 | Postulado das paralelas (de Euclides) | Por um ponto fora de uma reta passa uma única reta paralela a ela. | [0602a](0602a_paralelismo.ipynb) |
+| Prisma | A parte de um prisma ilimitado compreendida entre dois planos paralelos que cortam todas as arestas. Com base de $n$ lados: $V = 2n$, $A = 3n$, $F = n + 2$. | [0608a](0608a_prismas_e_paralelepipedos.ipynb) |
+| Prisma ilimitado | Sólido formado pelas retas paralelas a uma reta $r$ que passam por todos os pontos de um polígono convexo de um plano que $r$ fura: um "tubo" infinito com seção em forma de polígono. | [0608a](0608a_prismas_e_paralelepipedos.ipynb) |
+| Prisma oblíquo | Prisma com as arestas laterais oblíquas às bases. As faces laterais são paralelogramos e a altura é menor que a aresta lateral. | [0608a](0608a_prismas_e_paralelepipedos.ipynb) |
+| Prisma regular | Prisma **reto** com base em polígono regular. As faces laterais são retângulos congruentes. Um prisma oblíquo de base regular não é regular. | [0608a](0608a_prismas_e_paralelepipedos.ipynb) |
+| Prisma reto | Prisma com as arestas laterais perpendiculares às bases. As faces laterais são retângulos e a altura é igual à aresta lateral. | [0608a](0608a_prismas_e_paralelepipedos.ipynb) |
 | Projeção ortogonal | A projeção de um ponto $P$ sobre um plano $\alpha$ é o pé $P'$ da perpendicular a $\alpha$ por $P$; a de uma figura é o conjunto das projeções de todos os seus pontos. | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
 | Projetante | A reta $PP'$ que liga um ponto $P$ à sua projeção ortogonal $P'$. | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
 | Relação de Euler | Em todo poliedro convexo, $V - A + F = 2$. Não vale para todos os não convexos, e números que a satisfazem não garantem que o poliedro exista. | [0607a](0607a_poliedros_convexos.ipynb) |
@@ -84,9 +100,13 @@ Termos do módulo em ordem alfabética, com uma definição curta e o notebook e
 | Retas ortogonais | Retas **reversas** que formam ângulo de 90°. | [0602a](0602a_paralelismo.ipynb) |
 | Retas perpendiculares | Retas **concorrentes** que formam ângulo de 90°. | [0602a](0602a_paralelismo.ipynb) |
 | Retas reversas | Retas que não estão num mesmo plano. Nunca se encontram e não são paralelas. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
+| Romboedro | Paralelepípedo com as 6 faces losangos congruentes. A calcita se quebra em pedaços com essa forma; com ângulos retos, o romboedro é um cubo. | [0608a](0608a_prismas_e_paralelepipedos.ipynb) |
 | Seção de um diedro | O ângulo obtido cortando o diedro por um plano que corta a aresta num único ponto. Seções oblíquas podem ser maiores ou menores que a abertura verdadeira. | [0605a](0605a_diedros.ipynb) |
+| Seção de um prisma | Polígono obtido cortando um prisma (ilimitado) por um plano que corta todas as arestas. Seções feitas por planos paralelos são congruentes. | [0608a](0608a_prismas_e_paralelepipedos.ipynb) |
 | Seção igualmente inclinada | Ângulo $x\hat{O}y$, com $O$ na aresta, $Ox$ numa face e $Oy$ na outra, cujos lados formam com a aresta, do mesmo lado, um mesmo ângulo $\varphi$ (a inclinação). Diedros congruentes ⟺ seções igualmente inclinadas congruentes de mesma inclinação. | [0605a](0605a_diedros.ipynb) |
+| Seção plana | Polígono que aparece quando um plano corta um poliedro. No cubo, pode ser triângulo, quadrilátero, pentágono ou hexágono, nunca mais de 6 lados; o plano perpendicular a uma diagonal pelo centro dá um hexágono regular. | [0608a](0608a_prismas_e_paralelepipedos.ipynb) |
 | Seção reta (seção normal) | Seção de um diedro feita por um plano **perpendicular à aresta**. Todas as seções retas de um diedro são congruentes. | [0605a](0605a_diedros.ipynb) |
+| Seção reta de um prisma | Seção de um prisma feita por um plano **perpendicular às arestas laterais**. No prisma reto, é congruente à base. Vale $S_\ell = 2p_{\text{seção reta}} \cdot \ell$. | [0608a](0608a_prismas_e_paralelepipedos.ipynb) |
 | Segmento oblíquo | Segmento $PA$ que liga um ponto $P$ fora de um plano a um ponto $A$ do plano, diferente do pé $O$ da perpendicular. A sua projeção no plano é $OA$, e $PA^2 = PO^2 + OA^2$. | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
 | Segmento perpendicular | Segmento $PO$ que liga um ponto $P$ ao pé $O$ da perpendicular a um plano. É menor que qualquer segmento oblíquo traçado de $P$. | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
 | Semiespaço | Cada uma das duas partes em que um plano divide o espaço. | [0605a](0605a_diedros.ipynb) |

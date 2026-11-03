@@ -51,6 +51,9 @@ v6 — notebook 06: triedros (construção a partir das faces, planificação, t
 v7 — notebook 07: poliedros (Platão, exemplos não convexos, desenho, dual,
      truncamento, convexidade, diedros), faces soltas, planificações (padrão dos
      sólidos de Platão, a partir de quadrados, dobra e verificação de fechamento)
+v8 — notebook 08: polígono regular, prisma (a partir de base e deslocamento),
+     paralelepípedo (geral, retângulo e romboedro), planificação de prisma regular,
+     seção plana de poliedro convexo, áreas de polígono e de superfície
 
 Semiplanos e diedros
 --------------------
@@ -1358,6 +1361,72 @@ def vertices_do_angulo_poliedrico_regular(
         )
         pontos.append(_como_ponto(comprimento * np.array(direcao)))
     return (0.0, 0.0, 0.0), pontos
+
+
+def poligono_regular(
+    n: int,
+    lado: float | None = None,
+    raio: float | None = None,
+    centro: Vetor3D = (0, 0, 0),
+    normal: Vetor3D = (0, 0, 1),
+    giro: float = 0,
+) -> list[tuple[float, float, float]]:
+    """Devolve os vértices de um polígono regular de n lados.
+
+    Os vértices ficam numa circunferência (a circunscrita ao polígono), igualmente
+    espaçados, em sentido anti-horário quando vistos do lado para onde `normal`
+    aponta. Informe o lado OU o raio da circunferência circunscrita: um determina
+    o outro, pela relação lado = 2 · raio · sen(180° / n) (módulo 04).
+
+    Esta função não desenha nada. As contas internas usam coordenadas, assunto do
+    módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        n: o número de lados (pelo menos 3).
+        lado: a medida de cada lado.
+        raio: o raio da circunferência circunscrita.
+        centro: o centro do polígono.
+        normal: um vetor perpendicular ao plano do polígono.
+        giro: ângulo (em graus) que gira o polígono em torno do centro, dentro do
+            seu plano.
+
+    Retorna:
+        A lista dos n vértices, cada um como (x, y, z).
+
+    Levanta:
+        ValueError: se n < 3, ou se não for informado exatamente um entre `lado`
+            e `raio`.
+
+    Exemplo:
+        >>> hexagono = poligono_regular(6, lado=2)
+        >>> len(hexagono)
+        6
+    """
+    if n < 3:
+        raise ValueError("Um polígono precisa de pelo menos 3 lados.")
+    if (lado is None) == (raio is None):
+        raise ValueError("Informe o lado ou o raio do polígono (apenas um deles).")
+    if raio is None:
+        raio = lado / (2 * np.sin(np.pi / n))
+
+    c = _como_vetor(centro)
+    nn = _normalizar(normal)
+    # Duas direções dentro do plano, formando 90° entre si. Preferimos que a
+    # primeira seja a "sombra" do eixo x no plano; se o normal estiver quase na
+    # direção x, usamos o eixo z. A segunda é escolhida para que o giro de u para v
+    # seja anti-horário visto da ponta do normal.
+    apoio = np.array([1.0, 0.0, 0.0])
+    if abs(np.dot(apoio, nn)) > 0.9:
+        apoio = np.array([0.0, 0.0, 1.0])
+    u = _normalizar(apoio - np.dot(apoio, nn) * nn)
+    v = np.cross(nn, u)
+
+    # Como no ciclo trigonométrico: o vértice k fica no ângulo giro + k · 360° / n.
+    vertices = []
+    for k in range(n):
+        t = np.radians(giro) + 2 * np.pi * k / n
+        vertices.append(_como_ponto(c + raio * (np.cos(t) * u + np.sin(t) * v)))
+    return vertices
 
 
 # --- Desenhos ---
@@ -3320,6 +3389,289 @@ def truncar_poliedro(
     return [_como_ponto(p) for p in novos_pontos], novas_faces
 
 
+def prisma(
+    base: Sequence[Vetor3D], deslocamento: Vetor3D
+) -> tuple[list[tuple[float, float, float]], list[list[int]]]:
+    """Devolve os vértices e as faces de um prisma.
+
+    A base de baixo é o polígono convexo `base`. A base de cima é a mesma base
+    "empurrada" pelo vetor `deslocamento`, que é também o vetor de cada aresta
+    lateral: todas as arestas laterais ficam paralelas e com o mesmo comprimento.
+    Se o deslocamento for perpendicular ao plano da base, o prisma é reto; se não,
+    é oblíquo.
+
+    Esta função não desenha nada. As contas internas usam coordenadas e vetores,
+    assunto do módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        base: os vértices da base (pelo menos 3, todos num mesmo plano), na ordem
+            do contorno.
+        deslocamento: o vetor que leva a base de baixo até a base de cima.
+
+    Retorna:
+        Uma tupla (vertices, faces). Os vértices 0 a n − 1 são os da base de baixo,
+        e os vértices n a 2n − 1 são os da base de cima, na mesma ordem (o vértice
+        n + k fica acima do vértice k). As faces são: a base de baixo, a base de
+        cima e as n faces laterais, todas em sentido anti-horário vistas de fora.
+
+    Levanta:
+        ValueError: se a base tiver menos de 3 vértices ou se o deslocamento for
+            paralelo ao plano da base.
+
+    Exemplo:
+        >>> vertices, faces = prisma(poligono_regular(6, lado=2), (0, 0, 5))
+        >>> len(vertices), len(faces)
+        (12, 8)
+    """
+    if len(base) < 3:
+        raise ValueError("A base de um prisma precisa de pelo menos 3 vértices.")
+    pontos = [_como_vetor(p) for p in base]
+    d = _como_vetor(deslocamento)
+    n = len(pontos)
+
+    # O sinal do produto escalar entre o normal da base e o deslocamento diz para
+    # que lado do plano da base a base de cima foi empurrada. Se ele for (quase)
+    # zero, o deslocamento corre "deitado" no plano da base.
+    normal = _normal_da_face(pontos)
+    lado = np.dot(normal, d)
+    if abs(lado) <= TOLERANCIA * max(np.linalg.norm(d), 1.0):
+        raise ValueError(
+            "O deslocamento não pode ser paralelo ao plano da base: o prisma ficaria "
+            "achatado."
+        )
+
+    vertices = [_como_ponto(p) for p in pontos] + [_como_ponto(p + d) for p in pontos]
+    baixo = list(range(n))
+    cima = list(range(n, 2 * n))
+    laterais = [[k, (k + 1) % n, n + (k + 1) % n, n + k] for k in range(n)]
+    if lado > 0:
+        # A base de cima está do lado para onde o normal da base aponta: a base de
+        # baixo precisa ser percorrida ao contrário para "olhar" para fora.
+        baixo.reverse()
+    else:
+        # O deslocamento foi para o outro lado: invertemos a base de cima e as
+        # faces laterais.
+        cima.reverse()
+        laterais = [list(reversed(face)) for face in laterais]
+    return vertices, [baixo, cima] + laterais
+
+
+def paralelepipedo(
+    origem: Vetor3D, u: Vetor3D, v: Vetor3D, w: Vetor3D
+) -> tuple[list[tuple[float, float, float]], list[list[int]]]:
+    """Devolve os vértices e as faces de um paralelepípedo.
+
+    O vértice A é `origem`, e as três arestas que saem de A são os vetores u
+    (aresta AB), v (aresta AD) e w (aresta AE). A base de baixo ABCD é o
+    paralelogramo de lados u e v, e o sólido é o prisma que essa base forma com o
+    deslocamento w. Todas as 6 faces são paralelogramos.
+
+    Esta função não desenha nada. As contas internas usam coordenadas e vetores,
+    assunto do módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        origem: a posição do vértice A.
+        u: o vetor da aresta AB.
+        v: o vetor da aresta AD.
+        w: o vetor da aresta AE (aresta lateral).
+
+    Retorna:
+        Uma tupla (vertices, faces), com os vértices na ordem A, B, C, D, E, F, G,
+        H da convenção do módulo (E acima de A, F acima de B, e assim por diante).
+
+    Levanta:
+        ValueError: se u e v forem paralelos, ou se w estiver no plano de u e v.
+
+    Exemplo:
+        >>> vertices, faces = paralelepipedo((0, 0, 0), (3, 0, 0), (1, 2, 0), (0, 0, 2))
+        >>> vertices[6]  # o vértice G
+        (4.0, 2.0, 2.0)
+    """
+    a = _como_vetor(origem)
+    pu, pv = _como_vetor(u), _como_vetor(v)
+    if np.linalg.norm(np.cross(pu, pv)) <= TOLERANCIA * max(
+        np.linalg.norm(pu) * np.linalg.norm(pv), 1.0
+    ):
+        raise ValueError(
+            "As arestas AB e AD são paralelas: elas não formam um paralelogramo."
+        )
+    return prisma([a, a + pu, a + pu + pv, a + pv], w)
+
+
+def paralelepipedo_retangulo(
+    comprimento: float,
+    largura: float,
+    altura: float,
+    origem: Vetor3D = (0, 0, 0),
+) -> tuple[list[tuple[float, float, float]], list[list[int]]]:
+    """Devolve os vértices e as faces de um paralelepípedo retângulo (uma caixa).
+
+    As três arestas que saem de A são perpendiculares entre si: AB = comprimento,
+    AD = largura e AE = altura. A base de baixo ABCD fica deitada e a altura sobe
+    na vertical.
+
+    Esta função não desenha nada. As contas internas usam coordenadas, assunto do
+    módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        comprimento: a medida a = AB.
+        largura: a medida b = AD.
+        altura: a medida c = AE.
+        origem: a posição do vértice A.
+
+    Retorna:
+        Uma tupla (vertices, faces), com os vértices na ordem A, B, ..., H.
+
+    Exemplo:
+        >>> vertices, faces = paralelepipedo_retangulo(3, 4, 12)
+        >>> vertices[6]  # o vértice G
+        (3.0, 4.0, 12.0)
+    """
+    return paralelepipedo(
+        origem, (comprimento, 0, 0), (0, largura, 0), (0, 0, altura)
+    )
+
+
+def vertices_do_paralelepipedo(
+    comprimento: float,
+    largura: float,
+    altura: float,
+    origem: Vetor3D = (0, 0, 0),
+) -> dict[str, tuple[float, float, float]]:
+    """Devolve as posições dos 8 vértices de um paralelepípedo retângulo, com nomes.
+
+    Usa a mesma convenção do cubo (`vertices_do_cubo`): base de baixo ABCD, base de
+    cima EFGH, com E acima de A, F acima de B, G acima de C e H acima de D. As
+    medidas são AB = comprimento, AD = largura e AE = altura.
+
+    Parâmetros:
+        comprimento: a medida a = AB.
+        largura: a medida b = AD.
+        altura: a medida c = AE.
+        origem: a posição do vértice A.
+
+    Retorna:
+        Um dicionário {"A": (x, y, z), ..., "H": (x, y, z)}.
+
+    Exemplo:
+        >>> v = vertices_do_paralelepipedo(3, 4, 12)
+        >>> v["G"]
+        (3.0, 4.0, 12.0)
+    """
+    vertices, _ = paralelepipedo_retangulo(comprimento, largura, altura, origem)
+    return dict(zip("ABCDEFGH", vertices, strict=True))
+
+
+def romboedro(
+    aresta: float, angulo: float, origem: Vetor3D = (0, 0, 0)
+) -> tuple[list[tuple[float, float, float]], list[list[int]]]:
+    """Devolve os vértices e as faces de um romboedro.
+
+    Um romboedro é um paralelepípedo cujas 6 faces são losangos congruentes. Aqui
+    ele é construído a partir do vértice A: as três arestas AB, AD e AE têm o mesmo
+    comprimento e formam, duas a duas, o mesmo ângulo. Essas três arestas formam um
+    triedro com as três faces iguais (notebook 06). Com `angulo = 90`, o romboedro
+    é um cubo.
+
+    Esta função não desenha nada. As contas internas usam coordenadas e vetores,
+    assunto do módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        aresta: a medida de todas as arestas.
+        angulo: o ângulo entre duas arestas que saem de A, em graus.
+        origem: a posição do vértice A.
+
+    Retorna:
+        Uma tupla (vertices, faces), com os vértices na ordem A, B, ..., H.
+
+    Levanta:
+        ValueError: se o ângulo não estiver entre 0° e 120°.
+
+    Exemplo:
+        >>> vertices, faces = romboedro(2, 60)
+        >>> len(faces)
+        6
+    """
+    # Com três faces iguais a θ, a soma 3θ precisa ser menor que 360° (notebook 06).
+    if not 0 < angulo < 120:
+        raise ValueError(
+            "O ângulo entre as arestas do romboedro deve estar entre 0° e 120°."
+        )
+    triedro = vertices_do_triedro(angulo, angulo, angulo, comprimento=aresta)
+    # As três arestas do triedro (que sai da origem) viram as arestas AB, AD e AE.
+    return paralelepipedo(origem, triedro["A"], triedro["B"], triedro["C"])
+
+
+def secao_plana(
+    vertices: Sequence[Vetor3D], faces: Sequence[Sequence[int]], plano: Plano
+) -> list[tuple[float, float, float]]:
+    """Devolve o polígono que aparece quando um plano corta um poliedro CONVEXO.
+
+    Os vértices da seção são os pontos onde o plano corta as arestas do poliedro
+    (contando também os vértices do poliedro que estão no próprio plano). Eles são
+    devolvidos em ordem, dando a volta em torno do centro da seção.
+
+    A função supõe que o poliedro é convexo: num poliedro não convexo, a seção pode
+    ter "dentes" ou até virar mais de um pedaço, e a ordem calculada aqui não serve.
+
+    Esta função não desenha nada. As contas internas usam coordenadas e vetores,
+    assunto do módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        vertices: os vértices do poliedro, cada um como (x, y, z).
+        faces: as faces, cada uma como lista de números de vértices.
+        plano: o plano de corte, como (ponto, normal).
+
+    Retorna:
+        A lista dos vértices da seção, cada um como (x, y, z). A lista fica vazia
+        se o plano não cortar o poliedro, ou se só tocar num vértice ou numa
+        aresta.
+
+    Exemplo:
+        >>> cubo = paralelepipedo_retangulo(2, 2, 2)
+        >>> len(secao_plana(*cubo, ((1, 1, 1), (1, 1, 1))))  # o hexágono regular
+        6
+    """
+    pontos = np.array([_como_vetor(v) for v in vertices])
+    p0 = _como_vetor(plano[0])
+    normal = _normalizar(plano[1])
+    escala = max(float(np.max(np.linalg.norm(pontos - pontos.mean(axis=0), axis=1))), 1.0)
+    folga = 1e-9 * escala
+
+    # Distância (com sinal) de cada vértice ao plano: o sinal diz o lado.
+    distancias = (pontos - p0) @ normal
+    encontrados: list[np.ndarray] = []
+
+    def guardar(ponto: np.ndarray) -> None:
+        """Guarda o ponto, a menos que ele já tenha sido encontrado."""
+        if all(np.linalg.norm(ponto - outro) > 1e-7 * escala for outro in encontrados):
+            encontrados.append(ponto)
+
+    for i, j in _arestas_do_poliedro(faces):
+        di, dj = distancias[i], distancias[j]
+        if abs(di) <= folga:
+            guardar(pontos[i])  # o vértice i está no plano
+        if abs(dj) <= folga:
+            guardar(pontos[j])
+        if (di > folga and dj < -folga) or (di < -folga and dj > folga):
+            # As pontas estão em lados opostos: o plano corta a aresta. O ponto de
+            # corte divide a aresta na mesma razão que as distâncias (Tales).
+            t = di / (di - dj)
+            guardar(pontos[i] + t * (pontos[j] - pontos[i]))
+
+    if len(encontrados) < 3:
+        return []  # nenhum ponto, um vértice ou uma aresta: não há polígono
+
+    # Ordenamos os pontos pelo ângulo em volta do centro da seção, medido com seno e
+    # cosseno dentro do plano (como no ciclo trigonométrico).
+    centro = np.mean(encontrados, axis=0)
+    u, v = _base_do_plano(normal)
+    encontrados.sort(
+        key=lambda p: np.arctan2(np.dot(p - centro, v), np.dot(p - centro, u))
+    )
+    return [_como_ponto(p) for p in encontrados]
+
+
 # --- Planificações ---
 def _montar_planificacao(
     lados: int, aresta: float, pecas: Sequence[tuple[int, int]], angulo: float
@@ -3507,6 +3859,67 @@ def planificacao_de_quadrados(
         for c, l in celulas
     ]
     angulos = [0.0 if pai is None else 90.0 for pai in pais]
+    return {"faces": faces, "pais": pais, "dobradicas": dobradicas, "angulos": angulos}
+
+
+def planificacao_de_prisma_regular(
+    n: int, lado: float, altura: float
+) -> dict[str, list]:
+    """Monta a planificação de um prisma regular de n lados.
+
+    As faces laterais formam uma faixa de n retângulos (lado × altura), lado a
+    lado. A base de baixo fica presa embaixo do primeiro retângulo, e a base de
+    cima, em cima do mesmo retângulo.
+
+    Ângulos de dobra:
+    - entre dois retângulos vizinhos, 360° / n: o diedro entre faces laterais
+      vizinhas é o ângulo interno do polígono da base, 180° − 360° / n;
+    - entre as bases e a faixa, 90°, porque o prisma é reto.
+
+    O formato da planificação está descrito em `planificacao_padrao`. Esta função
+    não desenha nada; as contas internas usam coordenadas, assunto do módulo 07.
+
+    Parâmetros:
+        n: o número de lados da base (pelo menos 3).
+        lado: a aresta da base.
+        altura: a altura do prisma (a aresta lateral).
+
+    Retorna:
+        A planificação: as faces 0 a n − 1 são os retângulos da faixa; a face n é a
+        base de baixo e a face n + 1 é a base de cima.
+
+    Levanta:
+        ValueError: se n < 3.
+
+    Exemplo:
+        >>> p = planificacao_de_prisma_regular(6, 2, 5)
+        >>> len(p["faces"]), p["angulos"][1], p["angulos"][6]
+        (8, 60.0, 90.0)
+    """
+    if n < 3:
+        raise ValueError("Um polígono precisa de pelo menos 3 lados.")
+    a, h = float(lado), float(altura)
+
+    # A faixa: o retângulo k ocupa de x = k·a até x = (k + 1)·a, e de y = 0 até
+    # y = h. Cada retângulo fica preso ao anterior pelo lado vertical comum.
+    faces = [
+        [(k * a, 0.0, 0.0), ((k + 1) * a, 0.0, 0.0), ((k + 1) * a, h, 0.0), (k * a, h, 0.0)]
+        for k in range(n)
+    ]
+    pais: list[int | None] = [None] + list(range(n - 1))
+    dobradicas: list[tuple | None] = [None] + [
+        ((k * a, 0.0, 0.0), (k * a, h, 0.0)) for k in range(1, n)
+    ]
+    angulos = [0.0] + [360.0 / n] * (n - 1)
+
+    # As bases são construídas para fora da faixa: a de baixo abaixo do lado
+    # y = 0 do primeiro retângulo, e a de cima acima do lado y = h.
+    base_baixo = _poligono_regular((a, 0.0, 0.0), (0.0, 0.0, 0.0), n)
+    base_cima = _poligono_regular((0.0, h, 0.0), (a, h, 0.0), n)
+    faces += [[_como_ponto(p) for p in base_baixo], [_como_ponto(p) for p in base_cima]]
+    pais += [0, 0]
+    dobradicas += [((0.0, 0.0, 0.0), (a, 0.0, 0.0)), ((0.0, h, 0.0), (a, h, 0.0))]
+    angulos += [90.0, 90.0]
     return {"faces": faces, "pais": pais, "dobradicas": dobradicas, "angulos": angulos}
 
 
@@ -4394,3 +4807,58 @@ def diedros_do_poliedro(
         )
         diedros[(i, j)] = medir_angulo_do_diedro(pontos[i], pontos[j], p1, p2)
     return diedros
+
+
+def medir_area_do_poligono(pontos: Sequence[Vetor3D]) -> float:
+    """Mede a área de um polígono plano (convexo ou não).
+
+    Esta função usa o produto vetorial, assunto do módulo 07 (Geometria
+    Analítica). Aqui ela serve apenas para conferir a sua resposta: as fórmulas de
+    área que você deve usar são as da Geometria Plana (módulo 04).
+
+    Parâmetros:
+        pontos: os vértices do polígono, todos num mesmo plano, na ordem do
+            contorno.
+
+    Retorna:
+        A área do polígono.
+
+    Levanta:
+        ValueError: se houver menos de 3 vértices.
+
+    Exemplo:
+        >>> medir_area_do_poligono([(0, 0, 0), (2, 0, 0), (2, 2, 0), (0, 2, 0)])
+        4.0
+    """
+    if len(pontos) < 3:
+        raise ValueError("Um polígono precisa de pelo menos 3 vértices.")
+    vetores = [_como_vetor(p) for p in pontos]
+    # Somando os produtos vetoriais de vértices vizinhos (o último com o primeiro),
+    # obtemos um vetor perpendicular ao polígono cujo comprimento é o dobro da
+    # área. É a versão no espaço da "fórmula do cadarço" para polígonos.
+    soma = np.zeros(3)
+    for k in range(len(vetores)):
+        soma += np.cross(vetores[k], vetores[(k + 1) % len(vetores)])
+    return float(np.linalg.norm(soma) / 2)
+
+
+def medir_area_total(
+    vertices: Sequence[Vetor3D], faces: Sequence[Sequence[int]]
+) -> float:
+    """Mede a área total (a soma das áreas de todas as faces) de um poliedro.
+
+    Esta função usa o produto vetorial, assunto do módulo 07 (Geometria
+    Analítica). Aqui ela serve apenas para conferir a sua resposta.
+
+    Parâmetros:
+        vertices: os vértices, cada um como (x, y, z).
+        faces: as faces, cada uma como lista de números de vértices.
+
+    Retorna:
+        A área total do poliedro.
+
+    Exemplo:
+        >>> medir_area_total(*paralelepipedo_retangulo(3, 4, 12))
+        192.0
+    """
+    return sum(medir_area_do_poligono([vertices[i] for i in face]) for face in faces)
