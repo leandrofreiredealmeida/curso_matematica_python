@@ -54,6 +54,9 @@ v7 — notebook 07: poliedros (Platão, exemplos não convexos, desenho, dual,
 v8 — notebook 08: polígono regular, prisma (a partir de base e deslocamento),
      paralelepípedo (geral, retângulo e romboedro), planificação de prisma regular,
      seção plana de poliedro convexo, áreas de polígono e de superfície
+v9 — notebook 09: fatias de um prisma (reto, oblíquo ou torcido), desenho de blocos
+     e de pilhas de fatias (num único traço), medição de volume de poliedros
+     convexos
 
 Semiplanos e diedros
 --------------------
@@ -3672,6 +3675,73 @@ def secao_plana(
     return [_como_ponto(p) for p in encontrados]
 
 
+def fatias_de_prisma(
+    base: Sequence[Vetor3D],
+    deslocamento: Vetor3D,
+    numero_de_fatias: int,
+    torcao: float = 0,
+) -> list[list[tuple[float, float, float]]]:
+    """Devolve as fatias de uma "pilha de cartas" com a forma de um prisma.
+
+    Imagine o prisma fatiado em `numero_de_fatias` fatias finas, todas iguais à
+    base, como cartas de um baralho empilhadas. A função devolve o polígono que fica
+    na parte de BAIXO de cada fatia:
+    - a fatia k (de 0 a N − 1) é a `base` empurrada pela fração k / N do
+      `deslocamento`;
+    - e girada em torno do seu próprio centro, dentro do seu plano, pela fração
+      k / N do ângulo `torcao`.
+
+    Com `torcao = 0` e deslocamento perpendicular à base, é a pilha de um prisma
+    reto; com deslocamento inclinado, de um prisma oblíquo; com `torcao` diferente
+    de 0, de um prisma "torcido", como uma escada em caracol. Em todos os casos,
+    cada fatia é congruente à base: tem a mesma área.
+
+    Esta função não desenha nada. As contas internas usam coordenadas e vetores,
+    assunto do módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        base: os vértices da base (pelo menos 3, todos num mesmo plano), na ordem
+            do contorno.
+        deslocamento: o vetor que leva a base de baixo até o topo da pilha.
+        numero_de_fatias: quantas fatias a pilha tem (pelo menos 1).
+        torcao: o giro total, em graus, do topo da pilha em relação à base.
+
+    Retorna:
+        A lista das N fatias; cada fatia é a lista dos seus vértices (x, y, z), na
+        mesma ordem dos vértices da base.
+
+    Levanta:
+        ValueError: se `numero_de_fatias` for menor que 1, ou se a base tiver menos
+            de 3 vértices.
+
+    Exemplo:
+        >>> quadrado = poligono_regular(4, lado=2)
+        >>> fatias = fatias_de_prisma(quadrado, (0, 0, 3), 10, torcao=90)
+        >>> len(fatias)
+        10
+    """
+    if numero_de_fatias < 1:
+        raise ValueError("A pilha precisa de pelo menos 1 fatia.")
+    if len(base) < 3:
+        raise ValueError("A base de um prisma precisa de pelo menos 3 vértices.")
+    pontos = [_como_vetor(p) for p in base]
+    d = _como_vetor(deslocamento)
+    centro = np.mean(pontos, axis=0)
+    # A torção gira cada fatia em torno do eixo perpendicular à base que passa pelo
+    # seu centro: assim a fatia gira "deitada" no próprio plano, sem inclinar.
+    normal = _normal_da_face(pontos)
+
+    fatias = []
+    for k in range(numero_de_fatias):
+        fracao = k / numero_de_fatias
+        giro = _matriz_de_rotacao(normal, np.radians(fracao * torcao))
+        # Primeiro giramos em volta do centro (ainda na base); depois empurramos
+        # a fatia para a sua altura na pilha.
+        fatia = [centro + giro @ (p - centro) + fracao * d for p in pontos]
+        fatias.append([_como_ponto(p) for p in fatia])
+    return fatias
+
+
 # --- Planificações ---
 def _montar_planificacao(
     lados: int, aresta: float, pecas: Sequence[tuple[int, int]], angulo: float
@@ -4182,6 +4252,199 @@ def desenhar_poliedro(
         for ponto, rotulo in zip(pontos, rotulos, strict=True):
             para_fora = _normalizar(ponto - centro)
             fig = adicionar_rotulo(fig, ponto + 0.12 * raio * para_fora, rotulo)
+    return fig
+
+
+def _desenhar_malha(
+    fig: go.Figure,
+    pontos: Sequence[np.ndarray],
+    triangulos: Sequence[tuple[int, int, int]],
+    cores_dos_triangulos: Sequence[str],
+    opacidade: float,
+) -> go.Figure:
+    """Desenha muitos triângulos num único traço Mesh3d (bem mais leve que um traço
+    por face). Cada triângulo é um trio de números de pontos e tem a sua cor."""
+    xyz = np.array(pontos, dtype=float)
+    i, j, k = (list(coluna) for coluna in zip(*triangulos, strict=True))
+    fig.add_trace(
+        go.Mesh3d(
+            x=xyz[:, 0], y=xyz[:, 1], z=xyz[:, 2],
+            i=i, j=j, k=k,
+            facecolor=list(cores_dos_triangulos),
+            opacity=opacidade,
+            flatshading=True,
+            # Um pouco de luz difusa deixa as faces com tons diferentes, o que ajuda
+            # a enxergar a profundidade quando há muitos blocos ou fatias juntos.
+            lighting=dict(ambient=0.65, diffuse=0.5, specular=0.05, fresnel=0),
+            lightposition=dict(x=100, y=200, z=300),
+            hoverinfo="skip",
+        )
+    )
+    return fig
+
+
+def _faces_da_placa(
+    baixo: Sequence[np.ndarray], cima: Sequence[np.ndarray]
+) -> tuple[list[np.ndarray], list[tuple[int, int, int]], list[tuple[Vetor3D, Vetor3D]]]:
+    """Monta os triângulos e as arestas de uma placa (um prisma) dadas as bases.
+
+    Devolve os pontos (primeiro os de baixo, depois os de cima), os triângulos
+    (numerados a partir de 0) e os segmentos das arestas.
+    """
+    n = len(baixo)
+    pontos = list(baixo) + list(cima)
+    triangulos = []
+    # As duas bases, em leque (como em desenhar_poligono).
+    for m in range(1, n - 1):
+        triangulos.append((0, m, m + 1))
+        triangulos.append((n, n + m, n + m + 1))
+    # Cada face lateral é um quadrilátero, dividido em dois triângulos.
+    for m in range(n):
+        proximo = (m + 1) % n
+        triangulos.append((m, proximo, n + proximo))
+        triangulos.append((m, n + proximo, n + m))
+    arestas = []
+    for m in range(n):
+        proximo = (m + 1) % n
+        arestas.append((baixo[m], baixo[proximo]))
+        arestas.append((cima[m], cima[proximo]))
+        arestas.append((baixo[m], cima[m]))
+    return pontos, triangulos, arestas
+
+
+def desenhar_blocos(
+    fig: go.Figure,
+    origens: Sequence[Vetor3D],
+    aresta: float = 1,
+    cor: str | None = None,
+    opacidade: float = 0.85,
+    mostrar_arestas: bool = True,
+    cor_arestas: str | None = None,
+) -> go.Figure:
+    """Desenha vários cubinhos iguais, como blocos de montar.
+
+    Cada cubinho tem aresta `aresta` e o seu "canto de baixo" (o vértice de menores
+    coordenadas) numa das `origens`. Todos os cubinhos são desenhados juntos, num
+    único traço para as faces e num único traço para as arestas: assim a figura
+    continua leve mesmo com centenas de cubinhos.
+
+    Parâmetros:
+        fig: a figura.
+        origens: lista com o canto de baixo de cada cubinho, cada um como (x, y, z).
+        aresta: a medida da aresta de cada cubinho.
+        cor: cor das faces. Se não for informada, usa CORES["solido"].
+        opacidade: opacidade das faces, de 0 a 1.
+        mostrar_arestas: se True, desenha as arestas de cada cubinho.
+        cor_arestas: cor das arestas. Se não for informada, usa CORES["apoio"].
+
+    Retorna:
+        A mesma figura, com os cubinhos desenhados. Se `origens` estiver vazia, a
+        figura volta sem alterações.
+
+    Exemplo:
+        >>> origens = [(x, y, 0) for x in range(3) for y in range(2)]
+        >>> fig = desenhar_blocos(fig, origens)  # uma camada de 3 × 2 cubinhos
+    """
+    if len(origens) == 0:
+        return fig
+    cor = cor or CORES["solido"]
+    # Os 4 cantos do quadrado de baixo de um cubinho com canto na origem; os de
+    # cima ficam uma aresta acima.
+    cantos = ((0, 0, 0), (1, 0, 0), (1, 1, 0), (0, 1, 0))
+    quadrado = [np.array(p, dtype=float) * aresta for p in cantos]
+    subida = np.array([0.0, 0.0, aresta])
+
+    pontos: list[np.ndarray] = []
+    triangulos: list[tuple[int, int, int]] = []
+    arestas: list[tuple[Vetor3D, Vetor3D]] = []
+    for origem in origens:
+        o = _como_vetor(origem)
+        baixo = [o + p for p in quadrado]
+        cima = [p + subida for p in baixo]
+        pontos_do_bloco, triangulos_do_bloco, arestas_do_bloco = _faces_da_placa(
+            baixo, cima
+        )
+        # Os números dos pontos de cada bloco continuam a contagem dos anteriores.
+        inicio = len(pontos)
+        pontos += pontos_do_bloco
+        triangulos += [
+            (a + inicio, b + inicio, c + inicio) for a, b, c in triangulos_do_bloco
+        ]
+        arestas += arestas_do_bloco
+
+    fig = _desenhar_malha(fig, pontos, triangulos, [cor] * len(triangulos), opacidade)
+    if mostrar_arestas:
+        fig = _desenhar_linhas(fig, arestas, cor_arestas or CORES["apoio"], 2)
+    return fig
+
+
+def desenhar_pilha(
+    fig: go.Figure,
+    poligonos: Sequence[Sequence[Vetor3D]],
+    espessura: float,
+    cores: str | Sequence[str] | None = None,
+    opacidade: float = 0.9,
+    mostrar_arestas: bool = True,
+) -> go.Figure:
+    """Desenha uma pilha de fatias (placas finas), como uma pilha de cartas.
+
+    Cada polígono de `poligonos` vira uma placa: um prisma reto de altura
+    `espessura`, que sobe a partir do polígono na direção perpendicular a ele que
+    aponta para cima. Combina com `fatias_de_prisma`, que devolve os polígonos da
+    parte de baixo de cada fatia. Todas as placas são desenhadas num único traço
+    para as faces e num único traço para as arestas, para a figura continuar leve
+    mesmo com muitas fatias.
+
+    Parâmetros:
+        fig: a figura.
+        poligonos: lista de polígonos planos e convexos; cada um é uma lista de
+            pontos (x, y, z), na ordem do contorno.
+        espessura: a altura de cada placa.
+        cores: uma cor só ou uma lista de cores, usada em ciclo (uma por fatia). Se
+            não for informada, alterna CORES["plano"] e CORES["plano_secundario"],
+            o que dá o efeito de pilha de cartas.
+        opacidade: opacidade das placas, de 0 a 1.
+        mostrar_arestas: se True, desenha o contorno de cada placa.
+
+    Retorna:
+        A mesma figura, com a pilha desenhada.
+
+    Exemplo:
+        >>> quadrado = poligono_regular(4, lado=2)
+        >>> fatias = fatias_de_prisma(quadrado, (1, 0, 4), 20, torcao=90)
+        >>> fig = desenhar_pilha(fig, fatias, espessura=4 / 20)
+    """
+    if len(poligonos) == 0:
+        return fig
+    if cores is None:
+        cores = [CORES["plano"], CORES["plano_secundario"]]
+    elif isinstance(cores, str):
+        cores = [cores]
+
+    pontos: list[np.ndarray] = []
+    triangulos: list[tuple[int, int, int]] = []
+    cores_dos_triangulos: list[str] = []
+    arestas: list[tuple[Vetor3D, Vetor3D]] = []
+    for numero, poligono in enumerate(poligonos):
+        baixo = [_como_vetor(p) for p in poligono]
+        normal = _normal_da_face(baixo)
+        if normal[2] < 0:
+            normal = -normal  # queremos a perpendicular que aponta para cima
+        cima = [p + espessura * normal for p in baixo]
+        pontos_da_placa, triangulos_da_placa, arestas_da_placa = _faces_da_placa(
+            baixo, cima
+        )
+        inicio = len(pontos)
+        pontos += pontos_da_placa
+        triangulos += [
+            (a + inicio, b + inicio, c + inicio) for a, b, c in triangulos_da_placa
+        ]
+        cores_dos_triangulos += [cores[numero % len(cores)]] * len(triangulos_da_placa)
+        arestas += arestas_da_placa
+
+    fig = _desenhar_malha(fig, pontos, triangulos, cores_dos_triangulos, opacidade)
+    if mostrar_arestas:
+        fig = _desenhar_linhas(fig, arestas, CORES["fundo"], 1)
     return fig
 
 
@@ -4862,3 +5125,46 @@ def medir_area_total(
         192.0
     """
     return sum(medir_area_do_poligono([vertices[i] for i in face]) for face in faces)
+
+
+def medir_volume(
+    vertices: Sequence[Vetor3D], faces: Sequence[Sequence[int]]
+) -> float:
+    """Mede o volume de um poliedro CONVEXO.
+
+    Escolhemos um ponto dentro do poliedro (a média dos vértices) e ligamos esse
+    ponto a cada face, como se o poliedro fosse dividido em "pirâmides" com vértice
+    no centro. Cada face é dividida em triângulos, e cada triângulo forma com o
+    centro um tetraedro; o volume do poliedro é a soma dos volumes desses
+    tetraedros. Num poliedro não convexo, o centro pode ficar fora do sólido, e a
+    conta deixa de valer.
+
+    Esta função usa vetores, assunto do módulo 07 (Geometria Analítica). Aqui ela
+    serve apenas para conferir a sua resposta.
+
+    Parâmetros:
+        vertices: os vértices, cada um como (x, y, z).
+        faces: as faces, cada uma como lista de números de vértices.
+
+    Retorna:
+        O volume do poliedro.
+
+    Exemplo:
+        >>> medir_volume(*paralelepipedo_retangulo(3, 4, 12))
+        144.0
+    """
+    pontos = np.array([_como_vetor(v) for v in vertices])
+    centro = pontos.mean(axis=0)
+    volume = 0.0
+    for face in faces:
+        p0 = pontos[face[0]]
+        # Triangulação em leque da face: (0, 1, 2), (0, 2, 3), ...
+        for m in range(1, len(face) - 1):
+            p1, p2 = pontos[face[m]], pontos[face[m + 1]]
+            # O "produto misto" (determinante) dos três vetores que saem do centro
+            # vale 6 vezes o volume do tetraedro; o valor absoluto ignora o sinal,
+            # que só depende da ordem dos vértices.
+            vetores = np.array([p0 - centro, p1 - centro, p2 - centro])
+            produto_misto = np.linalg.det(vetores)
+            volume += abs(produto_misto) / 6
+    return float(round(volume, 12))
