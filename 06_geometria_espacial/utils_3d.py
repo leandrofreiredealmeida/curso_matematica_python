@@ -57,6 +57,8 @@ v8 — notebook 08: polígono regular, prisma (a partir de base e deslocamento),
 v9 — notebook 09: fatias de um prisma (reto, oblíquo ou torcido), desenho de blocos
      e de pilhas de fatias (num único traço), medição de volume de poliedros
      convexos
+v10 — notebook 10: pirâmide (geral e regular), planificação da pirâmide regular,
+     fatias de pirâmide e afastamento de peças
 
 Semiplanos e diedros
 --------------------
@@ -3742,6 +3744,193 @@ def fatias_de_prisma(
     return fatias
 
 
+def piramide(
+    base: Sequence[Vetor3D], vertice: Vetor3D
+) -> tuple[list[tuple[float, float, float]], list[list[int]]]:
+    """Devolve os vértices e as faces de uma pirâmide.
+
+    A base é o polígono convexo `base`, e cada lado da base forma uma face lateral
+    triangular com o `vertice`. A projeção do vértice sobre o plano da base pode
+    cair em qualquer lugar: a pirâmide não precisa ser regular.
+
+    Esta função não desenha nada. As contas internas usam coordenadas e vetores,
+    assunto do módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        base: os vértices da base (pelo menos 3, todos num mesmo plano), na ordem
+            do contorno.
+        vertice: o vértice da pirâmide, fora do plano da base.
+
+    Retorna:
+        Uma tupla (vertices, faces). Os vértices 0 a n − 1 são os da base, e o
+        vértice n é o vértice da pirâmide. As faces são a base e as n faces
+        laterais, todas em sentido anti-horário vistas de fora.
+
+    Levanta:
+        ValueError: se a base tiver menos de 3 vértices ou se o vértice estiver no
+            plano da base.
+
+    Exemplo:
+        >>> vertices, faces = piramide(poligono_regular(6, lado=2), (1, 0, 4))
+        >>> len(vertices), len(faces)
+        (7, 7)
+    """
+    if len(base) < 3:
+        raise ValueError("A base de uma pirâmide precisa de pelo menos 3 vértices.")
+    pontos = [_como_vetor(p) for p in base]
+    v = _como_vetor(vertice)
+    n = len(pontos)
+
+    # O sinal do produto escalar diz de que lado do plano da base está o vértice.
+    # Se ele for (quase) zero, o vértice está no próprio plano da base.
+    subida = v - pontos[0]
+    lado = np.dot(_normal_da_face(pontos), subida)
+    if abs(lado) <= TOLERANCIA * max(np.linalg.norm(subida), 1.0):
+        raise ValueError("O vértice está no plano da base: a pirâmide ficaria achatada.")
+
+    vertices = [_como_ponto(p) for p in pontos] + [_como_ponto(v)]
+    fundo = list(range(n))
+    laterais = [[k, (k + 1) % n, n] for k in range(n)]
+    if lado > 0:
+        # O vértice está do lado para onde o normal da base aponta: a base precisa
+        # ser percorrida ao contrário para "olhar" para fora.
+        fundo.reverse()
+    else:
+        # O vértice está do outro lado: são as faces laterais que invertemos.
+        laterais = [list(reversed(face)) for face in laterais]
+    return vertices, [fundo] + laterais
+
+
+def piramide_regular(
+    n: int, lado: float, altura: float, centro: Vetor3D = (0, 0, 0)
+) -> tuple[list[tuple[float, float, float]], list[list[int]]]:
+    """Devolve os vértices e as faces de uma pirâmide regular.
+
+    A base é um polígono regular de n lados, deitada no plano horizontal, e o vértice
+    fica na vertical que passa pelo centro da base, a `altura` acima dele.
+
+    Esta função não desenha nada. As contas internas usam coordenadas, assunto do
+    módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        n: o número de lados da base (pelo menos 3).
+        lado: a aresta da base.
+        altura: a altura da pirâmide (a distância do vértice ao plano da base).
+        centro: o centro da base.
+
+    Retorna:
+        Uma tupla (vertices, faces), como em `piramide`: os vértices 0 a n − 1 são os
+        da base, e o vértice n é o vértice da pirâmide.
+
+    Levanta:
+        ValueError: se n < 3 ou se a altura for 0.
+
+    Exemplo:
+        >>> vertices, faces = piramide_regular(4, 2, 3)
+        >>> vertices[4]  # o vértice da pirâmide
+        (0.0, 0.0, 3.0)
+    """
+    c = _como_vetor(centro)
+    base = poligono_regular(n, lado=lado, centro=c)
+    return piramide(base, c + (0, 0, altura))
+
+
+def fatias_de_piramide(
+    base: Sequence[Vetor3D], vertice: Vetor3D, numero_de_fatias: int
+) -> list[list[tuple[float, float, float]]]:
+    """Devolve as fatias de uma "escada" de placas que aproxima uma pirâmide.
+
+    A fatia k (de 0 a N − 1) é a base "encolhida" em direção ao vértice: cada ponto
+    P da base é levado a P + (k / N) · (vertice − P). A fatia 0 é a própria base, e
+    as outras vão diminuindo. Cada polígono é uma seção da pirâmide paralela à base.
+
+    Usadas com `desenhar_pilha` (com espessura h / N, em que h é a altura da
+    pirâmide), essas placas ficam um pouco PARA FORA da pirâmide: a soma dos seus
+    volumes é uma aproximação por excesso, que melhora quando N cresce.
+
+    Esta função não desenha nada. As contas internas usam coordenadas e vetores,
+    assunto do módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        base: os vértices da base (pelo menos 3, todos num mesmo plano), na ordem
+            do contorno.
+        vertice: o vértice da pirâmide.
+        numero_de_fatias: quantas fatias a pilha tem (pelo menos 1).
+
+    Retorna:
+        A lista das N fatias; cada fatia é a lista dos seus vértices (x, y, z), na
+        mesma ordem dos vértices da base.
+
+    Levanta:
+        ValueError: se `numero_de_fatias` for menor que 1, ou se a base tiver menos
+            de 3 vértices.
+
+    Exemplo:
+        >>> quadrado = poligono_regular(4, lado=2)
+        >>> fatias = fatias_de_piramide(quadrado, (0, 0, 3), 10)
+        >>> fig = desenhar_pilha(fig, fatias, espessura=3 / 10)
+    """
+    if numero_de_fatias < 1:
+        raise ValueError("A pilha precisa de pelo menos 1 fatia.")
+    if len(base) < 3:
+        raise ValueError("A base de uma pirâmide precisa de pelo menos 3 vértices.")
+    pontos = [_como_vetor(p) for p in base]
+    v = _como_vetor(vertice)
+
+    fatias = []
+    for k in range(numero_de_fatias):
+        fracao = k / numero_de_fatias
+        fatias.append([_como_ponto(p + fracao * (v - p)) for p in pontos])
+    return fatias
+
+
+def afastar_pecas(
+    pecas: Sequence[tuple[Sequence[Vetor3D], Sequence[Sequence[int]]]],
+    distancia: float,
+) -> list[tuple[list[tuple[float, float, float]], list[list[int]]]]:
+    """Afasta as peças de um sólido decomposto, como num desenho "explodido".
+
+    Cada peça se move `distancia` unidades na direção que vai do centro do conjunto
+    até o centro dela. O centro de uma peça é a média dos seus vértices, e o centro
+    do conjunto é a média dos centros das peças. As peças originais não são
+    alteradas.
+
+    Esta função não desenha nada. As contas internas usam coordenadas e vetores,
+    assunto do módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        pecas: lista de poliedros, cada um como (vertices, faces).
+        distancia: quanto cada peça se afasta. Com 0, as cópias ficam iguais às
+            peças originais.
+
+    Retorna:
+        A lista das cópias transladadas, cada uma como (vertices, faces). Uma peça
+        cujo centro coincide com o centro do conjunto fica no lugar, porque não há
+        uma direção para afastá-la.
+
+    Exemplo:
+        >>> pecas = [piramide_regular(4, 2, 3), piramide_regular(4, 2, 3, (5, 0, 0))]
+        >>> afastadas = afastar_pecas(pecas, 1)
+        >>> afastadas[1][0][4]  # o vértice da segunda pirâmide andou 1 para a direita
+        (6.0, 0.0, 3.0)
+    """
+    centros = [
+        np.mean([_como_vetor(p) for p in vertices], axis=0) for vertices, _ in pecas
+    ]
+    centro_do_conjunto = np.mean(centros, axis=0)
+
+    afastadas = []
+    for (vertices, faces), centro in zip(pecas, centros, strict=True):
+        direcao = centro - centro_do_conjunto
+        if np.linalg.norm(direcao) > TOLERANCIA:
+            deslocamento = distancia * _normalizar(direcao)
+        else:
+            deslocamento = np.zeros(3)
+        novos_vertices = [_como_ponto(_como_vetor(p) + deslocamento) for p in vertices]
+        afastadas.append((novos_vertices, [list(face) for face in faces]))
+    return afastadas
+
+
 # --- Planificações ---
 def _montar_planificacao(
     lados: int, aresta: float, pecas: Sequence[tuple[int, int]], angulo: float
@@ -3990,6 +4179,60 @@ def planificacao_de_prisma_regular(
     pais += [0, 0]
     dobradicas += [((0.0, 0.0, 0.0), (a, 0.0, 0.0)), ((0.0, h, 0.0), (a, h, 0.0))]
     angulos += [90.0, 90.0]
+    return {"faces": faces, "pais": pais, "dobradicas": dobradicas, "angulos": angulos}
+
+
+def planificacao_de_piramide_regular(
+    n: int, lado: float, altura: float
+) -> dict[str, list]:
+    """Monta a planificação de uma pirâmide regular de n lados.
+
+    A base fica fixa, e um triângulo lateral fica preso em cada lado dela, como as
+    pétalas de uma flor. A altura de cada triângulo é o apótema da pirâmide,
+    g = √(h² + m²), em que m é o apótema da base.
+
+    O ângulo de dobra de cada triângulo é 180° − θ, em que θ é o diedro entre a face
+    lateral e a base: tan θ = h / m.
+
+    O formato da planificação está descrito em `planificacao_padrao`. Esta função
+    não desenha nada; as contas internas usam coordenadas, assunto do módulo 07.
+
+    Parâmetros:
+        n: o número de lados da base (pelo menos 3).
+        lado: a aresta da base.
+        altura: a altura da pirâmide.
+
+    Retorna:
+        A planificação: a face 0 é a base, e as faces 1 a n são os triângulos
+        laterais (a face k + 1 fica presa ao lado que vai do vértice k ao vértice
+        k + 1 da base).
+
+    Levanta:
+        ValueError: se n < 3.
+
+    Exemplo:
+        >>> p = planificacao_de_piramide_regular(4, 2, 1)
+        >>> len(p["faces"]), round(p["angulos"][1])
+        (5, 135)
+    """
+    base = poligono_regular(n, lado=lado)
+    apotema_da_base = lado / (2 * np.tan(np.pi / n))
+    apotema_da_piramide = np.hypot(altura, apotema_da_base)
+    diedro = np.degrees(np.arctan2(altura, apotema_da_base))
+
+    faces = [base]
+    pais: list[int | None] = [None]
+    dobradicas: list[tuple | None] = [None]
+    for k in range(n):
+        inicio, fim = _como_vetor(base[k]), _como_vetor(base[(k + 1) % n])
+        # A ponta do triângulo fica para fora da base: a partir do ponto médio do
+        # lado, andamos g na direção que se afasta do centro da base.
+        meio = (inicio + fim) / 2
+        ponta = meio + apotema_da_piramide * _normalizar(meio)
+        faces.append([_como_ponto(inicio), _como_ponto(fim), _como_ponto(ponta)])
+        pais.append(0)
+        dobradicas.append((_como_ponto(inicio), _como_ponto(fim)))
+    angulos = [0.0] + [180.0 - float(diedro)] * n
     return {"faces": faces, "pais": pais, "dobradicas": dobradicas, "angulos": angulos}
 
 

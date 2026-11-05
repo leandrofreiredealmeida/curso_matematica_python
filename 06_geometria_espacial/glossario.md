@@ -4,6 +4,7 @@ Termos do módulo em ordem alfabética, com uma definição curta e o notebook e
 
 | Termo | Definição curta | Notebook |
 |---|---|---|
+| Altura da pirâmide | A distância $h$ do vértice da pirâmide ao plano da base. | [0610a](0610a_piramide.ipynb) |
 | Altura do prisma | A distância $h$ entre os planos das bases. No prisma reto, é igual à aresta lateral; no oblíquo, $h = \ell \cdot \sin\theta$, em que $\theta$ é o ângulo entre a aresta lateral e o plano da base. | [0608a](0608a_prismas_e_paralelepipedos.ipynb) |
 | Ângulo entre dois planos | 0° se os planos são paralelos ou coincidentes; se são secantes, a medida do **menor** dos diedros que eles formam (entre 0° e 90°). É igual ao ângulo entre retas perpendiculares aos planos. | [0605a](0605a_diedros.ipynb) |
 | Ângulo entre duas retas | O menor ângulo formado por elas: entre 0° e 90°. Para retas reversas, é o ângulo entre uma delas e uma paralela à outra que a corta. | [0602a](0602a_paralelismo.ipynb) |
@@ -11,12 +12,16 @@ Termos do módulo em ordem alfabética, com uma definição curta e o notebook e
 | Ângulo poliédrico | Figura formada por $n \ge 3$ semirretas de mesma origem $V$ (três consecutivas quaisquer não coplanares) e pelos ângulos entre semirretas consecutivas, as **faces**. O triedro é o caso $n = 3$. | [0606a](0606a_triedros_e_angulos_poliedricos.ipynb) |
 | Ângulo poliédrico convexo | Ângulo poliédrico em que o plano de cada face deixa todas as outras arestas do mesmo lado. A soma das faces é menor que 360°, e a soma dos diedros fica entre $(n-2) \cdot 180°$ e $n \cdot 180°$. | [0606a](0606a_triedros_e_angulos_poliedricos.ipynb) |
 | Ângulo retilíneo | O ângulo obtido numa seção reta de um diedro. A sua medida é a medida do diedro. | [0605a](0605a_diedros.ipynb) |
+| Apótema da base | Na pirâmide regular, o segmento $OM$, do centro da base ao ponto médio de um lado da base, de medida $m$. Tem $m = \frac{\ell}{2}$ na base quadrada. | [0610a](0610a_piramide.ipynb) |
+| Apótema da pirâmide | Na pirâmide regular, a altura $g = VM$ de uma face lateral: $g^2 = h^2 + m^2$. É perpendicular à aresta da base, pelo Teorema das três perpendiculares. | [0610a](0610a_piramide.ipynb) |
 | Área da projeção | Uma figura plana de área $S$ num plano que forma ângulo $\theta$ com $\beta$ tem projeção ortogonal sobre $\beta$ de área $S' = S \cos\theta$. Telhado: $S_{\text{telhado}} = S_{\text{planta}} / \cos\theta$. | [0605a](0605a_diedros.ipynb) |
 | Área lateral | A soma das áreas das faces laterais de um prisma: $S_\ell = 2p \cdot h$ no prisma reto e $S_\ell = 2p_{\text{seção reta}} \cdot \ell$ em qualquer prisma. | [0608a](0608a_prismas_e_paralelepipedos.ipynb) |
 | Área total | A área lateral mais as áreas das duas bases: $S_t = S_\ell + 2S_b$. No paralelepípedo retângulo $a \times b \times c$, $S = 2(ab + ac + bc)$; no cubo, $S = 6a^2$. | [0608a](0608a_prismas_e_paralelepipedos.ipynb) |
 | Aresta do diedro | A reta $r$, origem comum das duas faces de um diedro. | [0605a](0605a_diedros.ipynb) |
 | Arestas do triedro | As três semirretas $a$, $b$ e $c$ de um triedro $V(a, b, c)$. | [0606a](0606a_triedros_e_angulos_poliedricos.ipynb) |
 | Arestas laterais | Os lados das faces laterais de um prisma que ligam as duas bases. São paralelas e têm o mesmo comprimento. | [0608a](0608a_prismas_e_paralelepipedos.ipynb) |
+| Arestas laterais da pirâmide | Os segmentos que ligam o vértice da pirâmide aos vértices da base. Na pirâmide regular, são todas iguais: $a^2 = h^2 + R^2$. | [0610a](0610a_piramide.ipynb) |
+| Base da pirâmide | O polígono convexo que limita a pirâmide, num plano que não contém o vértice. O nome da pirâmide vem dele (triangular, quadrangular, pentagonal, hexagonal...). | [0610a](0610a_piramide.ipynb) |
 | Bases do prisma | Os dois polígonos congruentes, em planos paralelos, que limitam o prisma. O nome do prisma vem do polígono da base (triangular, quadrangular, pentagonal, hexagonal...). | [0608a](0608a_prismas_e_paralelepipedos.ipynb) |
 | Capacidade | O volume que um recipiente comporta, em geral medido em litros e mililitros: $1 \text{ L} = 1 \text{ dm}^3$ e $1 \text{ mL} = 1 \text{ cm}^3$. | [0609a](0609a_volume_e_principio_de_cavalieri.ipynb) |
 | Característica de Euler | O valor de $V - A + F$ de um poliedro. Vale 2 nos poliedros convexos, 0 num poliedro com um furo (como a moldura), −2 com dois furos, e assim por diante. É um dos pontos de partida da Topologia. | [0607a](0607a_poliedros_convexos.ipynb) |
@@ -51,6 +56,7 @@ Termos do módulo em ordem alfabética, com uma definição curta e o notebook e
 | Faces do diedro | Os dois semiplanos $\alpha$ e $\beta$ que formam um diedro. | [0605a](0605a_diedros.ipynb) |
 | Faces do triedro | Os três ângulos de um triedro. Cada face recebe o nome da aresta oposta: $f_a = b\hat{V}c$, $f_b = a\hat{V}c$, $f_c = a\hat{V}b$. A soma das faces é menor que 360°. | [0606a](0606a_triedros_e_angulos_poliedricos.ipynb) |
 | Faces laterais | As faces de um prisma que não são bases. São paralelogramos (retângulos, no prisma reto). | [0608a](0608a_prismas_e_paralelepipedos.ipynb) |
+| Faces laterais da pirâmide | Os triângulos com um vértice no vértice da pirâmide e o lado oposto numa aresta da base. Na pirâmide regular, são triângulos isósceles congruentes. | [0610a](0610a_piramide.ipynb) |
 | Faces, arestas e vértices de um poliedro | As **faces** são os polígonos que limitam o poliedro; as **arestas** são os lados das faces (cada uma comum a exatamente duas faces); os **vértices** são os vértices das faces, e em cada um há um ângulo poliédrico. Os seus números são indicados por $F$, $A$ e $V$. | [0607a](0607a_poliedros_convexos.ipynb) |
 | Feixe de planos | O conjunto de todos os planos que passam por uma mesma reta. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
 | Figura espacial | Figura cujos pontos não estão todos num mesmo plano. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
@@ -72,6 +78,9 @@ Termos do módulo em ordem alfabética, com uma definição curta e o notebook e
 | Paralelepípedo reto | Paralelepípedo com as arestas laterais perpendiculares às bases. | [0608a](0608a_prismas_e_paralelepipedos.ipynb) |
 | Pé da perpendicular | O ponto $O$ onde uma reta perpendicular a um plano (ou a uma reta) encontra esse plano (ou essa reta). | [0603a](0603a_perpendicularidade.ipynb) |
 | Perpendicular comum | A única reta concorrente com duas retas reversas e perpendicular a ambas. | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
+| Pirâmide | Dado um polígono convexo num plano $\alpha$ e um ponto $V$ fora de $\alpha$, o sólido formado por todos os segmentos que ligam $V$ aos pontos do polígono. Base com $n$ lados: $n + 1$ vértices, $2n$ arestas e $n + 1$ faces. | [0610a](0610a_piramide.ipynb) |
+| Pirâmide ilimitada | A região formada por todas as semirretas que saem de um ponto $V$ e passam pelos pontos de um polígono convexo, num plano que não contém $V$. É a região de um ângulo poliédrico de vértice $V$. | [0610a](0610a_piramide.ipynb) |
+| Pirâmide regular | Pirâmide cuja base é um polígono regular e cujo vértice se projeta ortogonalmente no centro da base. | [0610a](0610a_piramide.ipynb) |
 | Planificação | As faces de uma figura "abertas" lado a lado num plano, como o papel antes de ser dobrado. Na planificação de um triedro, as três faces ficam em volta do vértice, e sobra uma folga de $360° - $ (soma das faces). | [0606a](0606a_triedros_e_angulos_poliedricos.ipynb) |
 | Planificação de um poliedro | Figura plana formada pelas faces de um poliedro, ligadas pelas arestas, que pode ser **dobrada** para montá-lo. O cubo tem 11 planificações diferentes. | [0607a](0607a_poliedros_convexos.ipynb) |
 | Plano mediador | Plano perpendicular a um segmento $AB$ pelo seu ponto médio: o lugar geométrico dos pontos equidistantes de $A$ e $B$. | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
@@ -96,6 +105,7 @@ Termos do módulo em ordem alfabética, com uma definição curta e o notebook e
 | Prisma reto | Prisma com as arestas laterais perpendiculares às bases. As faces laterais são retângulos e a altura é igual à aresta lateral. | [0608a](0608a_prismas_e_paralelepipedos.ipynb) |
 | Projeção ortogonal | A projeção de um ponto $P$ sobre um plano $\alpha$ é o pé $P'$ da perpendicular a $\alpha$ por $P$; a de uma figura é o conjunto das projeções de todos os seus pontos. | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
 | Projetante | A reta $PP'$ que liga um ponto $P$ à sua projeção ortogonal $P'$. | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
+| Raio da base | Na pirâmide regular, o segmento $OA$, do centro da base a um vértice da base, de medida $R$: o raio da circunferência circunscrita à base. | [0610a](0610a_piramide.ipynb) |
 | Razão entre paralelepípedos retângulos | Se dois paralelepípedos retângulos têm duas dimensões iguais, a razão entre os volumes é a razão entre as terceiras dimensões. Em geral, $\frac{V_1}{V_2} = \frac{a_1 b_1 c_1}{a_2 b_2 c_2}$; dobrar as três dimensões multiplica o volume por 8. | [0609a](0609a_volume_e_principio_de_cavalieri.ipynb) |
 | Relação de Euler | Em todo poliedro convexo, $V - A + F = 2$. Não vale para todos os não convexos, e números que a satisfazem não garantem que o poliedro exista. | [0607a](0607a_poliedros_convexos.ipynb) |
 | Reta concorrente (secante) a um plano | Reta com exatamente um ponto em comum com o plano: ela "fura" o plano. | [0602a](0602a_paralelismo.ipynb) |
@@ -111,6 +121,7 @@ Termos do módulo em ordem alfabética, com uma definição curta e o notebook e
 | Seção de um diedro | O ângulo obtido cortando o diedro por um plano que corta a aresta num único ponto. Seções oblíquas podem ser maiores ou menores que a abertura verdadeira. | [0605a](0605a_diedros.ipynb) |
 | Seção de um prisma | Polígono obtido cortando um prisma (ilimitado) por um plano que corta todas as arestas. Seções feitas por planos paralelos são congruentes. | [0608a](0608a_prismas_e_paralelepipedos.ipynb) |
 | Seção igualmente inclinada | Ângulo $x\hat{O}y$, com $O$ na aresta, $Ox$ numa face e $Oy$ na outra, cujos lados formam com a aresta, do mesmo lado, um mesmo ângulo $\varphi$ (a inclinação). Diedros congruentes ⟺ seções igualmente inclinadas congruentes de mesma inclinação. | [0605a](0605a_diedros.ipynb) |
+| Seção paralela à base | Polígono semelhante à base obtido ao cortar a pirâmide por um plano paralelo à base, a uma distância $d$ do vértice: a razão de semelhança é $\frac{d}{h}$ e a área é $S_b \left(\frac{d}{h}\right)^2$. | [0610a](0610a_piramide.ipynb) |
 | Seção plana | Polígono que aparece quando um plano corta um poliedro. No cubo, pode ser triângulo, quadrilátero, pentágono ou hexágono, nunca mais de 6 lados; o plano perpendicular a uma diagonal pelo centro dá um hexágono regular. | [0608a](0608a_prismas_e_paralelepipedos.ipynb) |
 | Seção reta (seção normal) | Seção de um diedro feita por um plano **perpendicular à aresta**. Todas as seções retas de um diedro são congruentes. | [0605a](0605a_diedros.ipynb) |
 | Seção reta de um prisma | Seção de um prisma feita por um plano **perpendicular às arestas laterais**. No prisma reto, é congruente à base. Vale $S_\ell = 2p_{\text{seção reta}} \cdot \ell$. | [0608a](0608a_prismas_e_paralelepipedos.ipynb) |
@@ -118,6 +129,7 @@ Termos do módulo em ordem alfabética, com uma definição curta e o notebook e
 | Segmento oblíquo | Segmento $PA$ que liga um ponto $P$ fora de um plano a um ponto $A$ do plano, diferente do pé $O$ da perpendicular. A sua projeção no plano é $OA$, e $PA^2 = PO^2 + OA^2$. | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
 | Segmento perpendicular | Segmento $PO$ que liga um ponto $P$ ao pé $O$ da perpendicular a um plano. É menor que qualquer segmento oblíquo traçado de $P$. | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
 | Semiespaço | Cada uma das duas partes em que um plano divide o espaço. | [0605a](0605a_diedros.ipynb) |
+| Semiperímetro | A metade do perímetro de um polígono. Na base de uma pirâmide regular, $p = \frac{n\ell}{2}$, e a área lateral é $S_\ell = p \cdot g$. | [0610a](0610a_piramide.ipynb) |
 | Semiplano | Cada uma das duas partes em que uma reta $r$ divide um plano, junto com a própria reta $r$ (a **origem** do semiplano). | [0605a](0605a_diedros.ipynb) |
 | Semiplano bissetor | Semiplano com origem na aresta que divide um diedro em dois diedros adjacentes congruentes. Os seus pontos são equidistantes das duas faces. | [0605a](0605a_diedros.ipynb) |
 | Sólidos de Arquimedes | Poliedros convexos com faces regulares de dois ou mais tipos e todos os vértices iguais. Além das famílias infinitas de prismas e antiprismas, são 13, entre eles o cuboctaedro e o icosaedro truncado. | [0607a](0607a_poliedros_convexos.ipynb) |
@@ -128,6 +140,7 @@ Termos do módulo em ordem alfabética, com uma definição curta e o notebook e
 | Teorema de Descartes | Em todo poliedro convexo, a soma dos defeitos de todos os vértices é 720°. É consequência da Relação de Euler: $360° \cdot V - (V - 2) \cdot 360° = 720°$. | [0607a](0607a_poliedros_convexos.ipynb) |
 | Teorema de Tales no espaço | Três planos paralelos cortados por duas transversais determinam segmentos proporcionais: $\frac{AB}{BC} = \frac{A'B'}{B'C'}$. | [0602a](0602a_paralelismo.ipynb) |
 | Teorema fundamental da perpendicularidade | Se uma reta forma 90° com **duas retas concorrentes** de um plano, ela é perpendicular ao plano. | [0603a](0603a_perpendicularidade.ipynb) |
+| Tetraedro regular | A pirâmide triangular com as seis arestas iguais, de medida $a$: $h = \frac{a\sqrt{6}}{3}$, $S_t = a^2\sqrt{3}$ e volume $\frac{a^3\sqrt{2}}{12}$. | [0610a](0610a_piramide.ipynb) |
 | Tetraedro, hexaedro, octaedro, dodecaedro, icosaedro | Nomes dos poliedros com 4, 6, 8, 12 e 20 faces. Quando regulares, são os cinco poliedros regulares (o hexaedro regular é o cubo). | [0607a](0607a_poliedros_convexos.ipynb) |
 | Transitividade do paralelismo | Se $a \parallel b$ e $b \parallel c$, então $a \parallel c$ (vale também no espaço). | [0602a](0602a_paralelismo.ipynb) |
 | Triângulo esférico | Figura que as faces de um triedro com vértice no centro de uma esfera marcam na superfície. Os lados correspondem às faces e os ângulos aos diedros; por isso a soma dos ângulos é maior que 180°. | [0606a](0606a_triedros_e_angulos_poliedricos.ipynb) |
@@ -138,6 +151,8 @@ Termos do módulo em ordem alfabética, com uma definição curta e o notebook e
 | Truncamento | Operação de "cortar os cantos" de um poliedro: cada vértice vira uma face nova, e cada face original vira um polígono com o dobro de lados (ou com o mesmo número de lados, se o corte for na metade das arestas). | [0607a](0607a_poliedros_convexos.ipynb) |
 | Unidade de volume | O cubo de aresta 1 (de 1 m, 1 dm, 1 cm...), cujo volume é 1. Medir um volume é contar quantas unidades de volume cabem no sólido. | [0609a](0609a_volume_e_principio_de_cavalieri.ipynb) |
 | Verdadeira grandeza | Diz-se de uma figura cuja projeção ortogonal tem o mesmo tamanho e a mesma forma que ela; acontece quando a figura é paralela ao plano de projeção. | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
+| Vértice da pirâmide | O ponto $V$, fora do plano da base, onde se encontram todas as faces laterais. | [0610a](0610a_piramide.ipynb) |
 | Vértice do triedro | O ponto $V$, origem comum das três arestas de um triedro. | [0606a](0606a_triedros_e_angulos_poliedricos.ipynb) |
 | Volume | Número positivo que indica quantas vezes a unidade de volume cabe num sólido. Sólidos congruentes têm volumes iguais; o volume de um sólido dividido em partes é a soma dos volumes das partes. Paralelepípedo retângulo: $V = abc$; cubo: $V = a^3$. | [0609a](0609a_volume_e_principio_de_cavalieri.ipynb) |
+| Volume da pirâmide | Um terço do produto da área da base pela altura: $\frac{1}{3} S_b \cdot h$. Pirâmides de bases com a mesma área e a mesma altura têm o mesmo volume. | [0610a](0610a_piramide.ipynb) |
 | Volume do prisma | $V = S_b \cdot h$ (área da base × altura), para prismas retos e oblíquos de qualquer base, demonstrado pelo Princípio de Cavalieri. No oblíquo, $h = \ell \sin\theta$; também $V = S_{\text{seção reta}} \cdot \ell$. | [0609a](0609a_volume_e_principio_de_cavalieri.ipynb) |
