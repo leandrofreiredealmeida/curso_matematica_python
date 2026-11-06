@@ -16,6 +16,7 @@ Termos do módulo em ordem alfabética, com uma definição curta e o notebook e
 | Apótema da pirâmide | Na pirâmide regular, a altura $g = VM$ de uma face lateral: $g^2 = h^2 + m^2$. É perpendicular à aresta da base, pelo Teorema das três perpendiculares. | [0610a](0610a_piramide.ipynb) |
 | Área da projeção | Uma figura plana de área $S$ num plano que forma ângulo $\theta$ com $\beta$ tem projeção ortogonal sobre $\beta$ de área $S' = S \cos\theta$. Telhado: $S_{\text{telhado}} = S_{\text{planta}} / \cos\theta$. | [0605a](0605a_diedros.ipynb) |
 | Área lateral | A soma das áreas das faces laterais de um prisma: $S_\ell = 2p \cdot h$ no prisma reto e $S_\ell = 2p_{\text{seção reta}} \cdot \ell$ em qualquer prisma. | [0608a](0608a_prismas_e_paralelepipedos.ipynb) |
+| Área lateral do cilindro | No cilindro reto, $S_\ell = 2\pi r h$: a área do retângulo $2\pi r \times h$ obtido ao desenrolar a superfície lateral. | [0611a](0611a_cilindro.ipynb) |
 | Área total | A área lateral mais as áreas das duas bases: $S_t = S_\ell + 2S_b$. No paralelepípedo retângulo $a \times b \times c$, $S = 2(ab + ac + bc)$; no cubo, $S = 6a^2$. | [0608a](0608a_prismas_e_paralelepipedos.ipynb) |
 | Aresta do diedro | A reta $r$, origem comum das duas faces de um diedro. | [0605a](0605a_diedros.ipynb) |
 | Arestas do triedro | As três semirretas $a$, $b$ e $c$ de um triedro $V(a, b, c)$. | [0606a](0606a_triedros_e_angulos_poliedricos.ipynb) |
@@ -25,6 +26,10 @@ Termos do módulo em ordem alfabética, com uma definição curta e o notebook e
 | Bases do prisma | Os dois polígonos congruentes, em planos paralelos, que limitam o prisma. O nome do prisma vem do polígono da base (triangular, quadrangular, pentagonal, hexagonal...). | [0608a](0608a_prismas_e_paralelepipedos.ipynb) |
 | Capacidade | O volume que um recipiente comporta, em geral medido em litros e mililitros: $1 \text{ L} = 1 \text{ dm}^3$ e $1 \text{ mL} = 1 \text{ cm}^3$. | [0609a](0609a_volume_e_principio_de_cavalieri.ipynb) |
 | Característica de Euler | O valor de $V - A + F$ de um poliedro. Vale 2 nos poliedros convexos, 0 num poliedro com um furo (como a moldura), −2 com dois furos, e assim por diante. É um dos pontos de partida da Topologia. | [0607a](0607a_poliedros_convexos.ipynb) |
+| Cilindro circular | Sólido formado por todos os segmentos paralelos a uma direção dada, com uma extremidade num círculo de um plano $\alpha$ e a outra num plano $\beta$ paralelo a $\alpha$. Tem duas bases circulares congruentes. | [0611a](0611a_cilindro.ipynb) |
+| Cilindro equilátero | Cilindro reto cuja seção meridiana é um quadrado: $h = 2r$. Tem $S_t = 6\pi r^2$ e volume $2\pi r^3$. | [0611a](0611a_cilindro.ipynb) |
+| Cilindro oblíquo | Cilindro cujas geratrizes são oblíquas às bases. Se a geratriz forma ângulo $\theta$ com o plano da base, $h = g \sin\theta$. | [0611a](0611a_cilindro.ipynb) |
+| Cilindro reto (de revolução) | Cilindro cujas geratrizes são perpendiculares às bases, de modo que $g = h$. É gerado por um retângulo girando em torno de um de seus lados. | [0611a](0611a_cilindro.ipynb) |
 | Coincidentes (retas ou planos) | São o mesmo objeto: todos os pontos em comum. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
 | Colineares (pontos) | Pontos que pertencem a uma mesma reta. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
 | Conceitos primitivos | Ponto, reta e plano: aceitos sem definição, a partir da intuição. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
@@ -48,11 +53,14 @@ Termos do módulo em ordem alfabética, com uma definição curta e o notebook e
 | Diedros congruentes | Diedros com a mesma medida. | [0605a](0605a_diedros.ipynb) |
 | Diedros do triedro | Os três diedros $d_a$, $d_b$ e $d_c$ de um triedro, um em cada aresta. A soma deles fica entre 180° e 540°. | [0606a](0606a_triedros_e_angulos_poliedricos.ipynb) |
 | Diedros opostos pela aresta | Dois dos quatro diedros formados por dois planos secantes que não são adjacentes. São congruentes, como os ângulos opostos pelo vértice. | [0605a](0605a_diedros.ipynb) |
+| Diretriz | A curva em que o segmento que gera uma superfície cilíndrica se apoia. Numa telha ondulada é a curva em forma de onda; num tubo, uma circunferência. | [0611a](0611a_cilindro.ipynb) |
 | Distância de ponto a plano | O comprimento do segmento perpendicular do ponto ao plano: é o menor segmento entre eles. | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
 | Distância de um ponto a uma reta | O comprimento do segmento perpendicular que liga o ponto à reta: é o menor segmento entre eles. Com as três perpendiculares, $PM = \sqrt{PO^2 + OM^2}$. | [0603a](0603a_perpendicularidade.ipynb) |
 | Distância entre figuras | O comprimento do **menor** segmento que liga um ponto de uma figura a um ponto da outra. | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
 | Distância entre planos paralelos | A distância de **qualquer** ponto de um dos planos ao outro (todos dão o mesmo valor). É a altura de um prisma. | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
 | Distância entre retas reversas | O comprimento do segmento da perpendicular comum. É igual à distância entre os planos paralelos que contêm as duas retas. | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
+| Eixo do cilindro | O segmento $OO'$ que liga os centros das bases do cilindro. | [0611a](0611a_cilindro.ipynb) |
+| Elipse | A "circunferência esticada" obtida ao cortar um cilindro reto por um plano inclinado que corta todas as geratrizes. Será estudada no módulo 07. | [0611a](0611a_cilindro.ipynb) |
 | Faces do diedro | Os dois semiplanos $\alpha$ e $\beta$ que formam um diedro. | [0605a](0605a_diedros.ipynb) |
 | Faces do triedro | Os três ângulos de um triedro. Cada face recebe o nome da aresta oposta: $f_a = b\hat{V}c$, $f_b = a\hat{V}c$, $f_c = a\hat{V}b$. A soma das faces é menor que 360°. | [0606a](0606a_triedros_e_angulos_poliedricos.ipynb) |
 | Faces laterais | As faces de um prisma que não são bases. São paralelogramos (retângulos, no prisma reto). | [0608a](0608a_prismas_e_paralelepipedos.ipynb) |
@@ -65,6 +73,7 @@ Termos do módulo em ordem alfabética, com uma definição curta e o notebook e
 | Geometria de Posição | Parte da Geometria Espacial que estuda as posições relativas de pontos, retas e planos, sem medir. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
 | Geometria Descritiva | Método criado por Gaspard Monge no fim do século XVIII para representar objetos 3D por projeções ortogonais em dois ou mais planos. É a base do desenho técnico. | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
 | Geometria não euclidiana | Geometria coerente em que o postulado das paralelas é falso (Gauss, Bolyai, Lobachevsky). | [0602a](0602a_paralelismo.ipynb) |
+| Geratriz | Cada posição do segmento que gera uma superfície cilíndrica. No cilindro, são os segmentos paralelos ao eixo, com extremidades nas circunferências das bases; seu comprimento é $g$. | [0611a](0611a_cilindro.ipynb) |
 | Icosaedro truncado | Sólido de Arquimedes com 12 faces pentagonais e 20 hexagonais ($V = 60$, $A = 90$, $F = 32$), obtido truncando o icosaedro a $\frac{1}{3}$ de cada aresta. É o formato clássico da bola de futebol e da molécula C₆₀. | [0607a](0607a_poliedros_convexos.ipynb) |
 | Inclinação percentual | A tangente do ângulo de inclinação vezes 100: $\tan\theta \cdot 100\%$. Uma inclinação de 100% corresponde a 45°, e não a uma parede vertical. | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
 | Litro | Unidade de capacidade igual ao volume de um cubo de 10 cm de aresta: $1 \text{ L} = 1 \text{ dm}^3 = 1000 \text{ cm}^3$, e $1 \text{ m}^3 = 1000 \text{ L}$. | [0609a](0609a_volume_e_principio_de_cavalieri.ipynb) |
@@ -83,6 +92,7 @@ Termos do módulo em ordem alfabética, com uma definição curta e o notebook e
 | Pirâmide regular | Pirâmide cuja base é um polígono regular e cujo vértice se projeta ortogonalmente no centro da base. | [0610a](0610a_piramide.ipynb) |
 | Planificação | As faces de uma figura "abertas" lado a lado num plano, como o papel antes de ser dobrado. Na planificação de um triedro, as três faces ficam em volta do vértice, e sobra uma folga de $360° - $ (soma das faces). | [0606a](0606a_triedros_e_angulos_poliedricos.ipynb) |
 | Planificação de um poliedro | Figura plana formada pelas faces de um poliedro, ligadas pelas arestas, que pode ser **dobrada** para montá-lo. O cubo tem 11 planificações diferentes. | [0607a](0607a_poliedros_convexos.ipynb) |
+| Planificação do cilindro | No cilindro reto, um retângulo $2\pi r \times h$ (a superfície lateral desenrolada) e dois círculos de raio $r$ (as bases). | [0611a](0611a_cilindro.ipynb) |
 | Plano mediador | Plano perpendicular a um segmento $AB$ pelo seu ponto médio: o lugar geométrico dos pontos equidistantes de $A$ e $B$. | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
 | Planos bissetores | Os dois planos formados pelos pontos equidistantes de dois planos secantes. Contêm a reta de interseção e são perpendiculares entre si. | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
 | Planos paralelos | Planos sem ponto em comum. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
@@ -121,6 +131,7 @@ Termos do módulo em ordem alfabética, com uma definição curta e o notebook e
 | Seção de um diedro | O ângulo obtido cortando o diedro por um plano que corta a aresta num único ponto. Seções oblíquas podem ser maiores ou menores que a abertura verdadeira. | [0605a](0605a_diedros.ipynb) |
 | Seção de um prisma | Polígono obtido cortando um prisma (ilimitado) por um plano que corta todas as arestas. Seções feitas por planos paralelos são congruentes. | [0608a](0608a_prismas_e_paralelepipedos.ipynb) |
 | Seção igualmente inclinada | Ângulo $x\hat{O}y$, com $O$ na aresta, $Ox$ numa face e $Oy$ na outra, cujos lados formam com a aresta, do mesmo lado, um mesmo ângulo $\varphi$ (a inclinação). Diedros congruentes ⟺ seções igualmente inclinadas congruentes de mesma inclinação. | [0605a](0605a_diedros.ipynb) |
+| Seção meridiana | A seção de um cilindro por um plano que contém o eixo: um retângulo $2r \times h$ no cilindro reto e um paralelogramo no oblíquo. | [0611a](0611a_cilindro.ipynb) |
 | Seção paralela à base | Polígono semelhante à base obtido ao cortar a pirâmide por um plano paralelo à base, a uma distância $d$ do vértice: a razão de semelhança é $\frac{d}{h}$ e a área é $S_b \left(\frac{d}{h}\right)^2$. | [0610a](0610a_piramide.ipynb) |
 | Seção plana | Polígono que aparece quando um plano corta um poliedro. No cubo, pode ser triângulo, quadrilátero, pentágono ou hexágono, nunca mais de 6 lados; o plano perpendicular a uma diagonal pelo centro dá um hexágono regular. | [0608a](0608a_prismas_e_paralelepipedos.ipynb) |
 | Seção reta (seção normal) | Seção de um diedro feita por um plano **perpendicular à aresta**. Todas as seções retas de um diedro são congruentes. | [0605a](0605a_diedros.ipynb) |
@@ -134,6 +145,7 @@ Termos do módulo em ordem alfabética, com uma definição curta e o notebook e
 | Semiplano bissetor | Semiplano com origem na aresta que divide um diedro em dois diedros adjacentes congruentes. Os seus pontos são equidistantes das duas faces. | [0605a](0605a_diedros.ipynb) |
 | Sólidos de Arquimedes | Poliedros convexos com faces regulares de dois ou mais tipos e todos os vértices iguais. Além das famílias infinitas de prismas e antiprismas, são 13, entre eles o cuboctaedro e o icosaedro truncado. | [0607a](0607a_poliedros_convexos.ipynb) |
 | Soma dos ângulos das faces | Em todo poliedro convexo, a soma dos ângulos internos de todas as faces é $S = (V - 2) \cdot 360°$: ela só depende do número de vértices. | [0607a](0607a_poliedros_convexos.ipynb) |
+| Superfície cilíndrica | O "rastro" de um segmento que se move sempre paralelo a uma direção fixa, apoiado numa curva (a diretriz). Quando a diretriz é uma circunferência, a superfície é cilíndrica circular. | [0611a](0611a_cilindro.ipynb) |
 | Superfície esférica | O conjunto dos pontos do espaço que estão a uma distância $R$ (o raio) de um ponto $C$ (o centro). | [0604a](0604a_projecoes_distancias_e_angulos.ipynb) |
 | Teorema | Afirmação demonstrada a partir dos postulados e de outros teoremas. | [0601a](0601a_introducao_geometria_de_posicao.ipynb) |
 | Teorema das três perpendiculares | Se $r \perp \alpha$ em $O$, $s \subset \alpha$ e $OM \perp s$ (com $M \in s$), então $PM \perp s$ para todo $P \in r$. | [0603a](0603a_perpendicularidade.ipynb) |
@@ -155,4 +167,5 @@ Termos do módulo em ordem alfabética, com uma definição curta e o notebook e
 | Vértice do triedro | O ponto $V$, origem comum das três arestas de um triedro. | [0606a](0606a_triedros_e_angulos_poliedricos.ipynb) |
 | Volume | Número positivo que indica quantas vezes a unidade de volume cabe num sólido. Sólidos congruentes têm volumes iguais; o volume de um sólido dividido em partes é a soma dos volumes das partes. Paralelepípedo retângulo: $V = abc$; cubo: $V = a^3$. | [0609a](0609a_volume_e_principio_de_cavalieri.ipynb) |
 | Volume da pirâmide | Um terço do produto da área da base pela altura: $\frac{1}{3} S_b \cdot h$. Pirâmides de bases com a mesma área e a mesma altura têm o mesmo volume. | [0610a](0610a_piramide.ipynb) |
+| Volume do cilindro | $\pi r^2 \cdot h$ (área da base × altura), para cilindros retos e oblíquos, demonstrado pelo Princípio de Cavalieri. | [0611a](0611a_cilindro.ipynb) |
 | Volume do prisma | $V = S_b \cdot h$ (área da base × altura), para prismas retos e oblíquos de qualquer base, demonstrado pelo Princípio de Cavalieri. No oblíquo, $h = \ell \sin\theta$; também $V = S_{\text{seção reta}} \cdot \ell$. | [0609a](0609a_volume_e_principio_de_cavalieri.ipynb) |

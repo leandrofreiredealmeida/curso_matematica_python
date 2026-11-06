@@ -59,6 +59,9 @@ v9 — notebook 09: fatias de um prisma (reto, oblíquo ou torcido), desenho de 
      convexos
 v10 — notebook 10: pirâmide (geral e regular), planificação da pirâmide regular,
      fatias de pirâmide e afastamento de peças
+v11 — notebook 11: superfícies cilíndricas, cilindro (reto e oblíquo, inteiro ou
+     parcial), enrolamento da superfície lateral, seção meridiana, seção plana do
+     cilindro reto, gráficos 2D (figura, curva e ponto), curva no espaço
 
 Semiplanos e diedros
 --------------------
@@ -439,6 +442,29 @@ def _matriz_de_rotacao(eixo: Vetor3D, angulo: float) -> np.ndarray:
     )
 
 
+def _cor_transparente(cor: str, opacidade: float) -> str:
+    """Converte uma cor como "#D8DEE9" no formato "rgba(216, 222, 233, 0.2)".
+
+    Os dois primeiros dígitos depois do # são o vermelho, os dois seguintes o verde e
+    os dois últimos o azul, escritos na base 16.
+    """
+    vermelho, verde, azul = (int(cor[i : i + 2], 16) for i in (1, 3, 5))
+    return f"rgba({vermelho}, {verde}, {azul}, {opacidade})"
+
+
+def _conferir_deslocamento_do_cilindro(
+    deslocamento: Vetor3D, normal_da_base: Vetor3D
+) -> None:
+    """Levanta ValueError se o deslocamento correr "deitado" no plano da base."""
+    d = _como_vetor(deslocamento)
+    n = _normalizar(normal_da_base)
+    if abs(np.dot(d, n)) <= TOLERANCIA * max(np.linalg.norm(d), 1.0):
+        raise ValueError(
+            "O deslocamento não pode ser paralelo ao plano da base: o cilindro ficaria "
+            "achatado."
+        )
+
+
 # ==================================================================================
 # Figura e exibição
 # ==================================================================================
@@ -521,6 +547,127 @@ def mostrar(fig: go.Figure) -> None:
         >>> mostrar(fig)
     """
     fig.show(config={"displaylogo": False})
+
+
+# --- Gráficos 2D (com o mesmo tema visual das figuras 3D) ---
+def criar_grafico(
+    titulo: str | None = None,
+    rotulo_x: str | None = None,
+    rotulo_y: str | None = None,
+    altura: int = 400,
+) -> go.Figure:
+    """Cria um gráfico 2D vazio, com o visual padrão do módulo.
+
+    Parâmetros:
+        titulo: texto que aparece no alto do gráfico (opcional).
+        rotulo_x: nome do eixo horizontal (opcional).
+        rotulo_y: nome do eixo vertical (opcional).
+        altura: altura do gráfico, em pixels.
+
+    Retorna:
+        Uma figura do Plotly (`go.Figure`), pronta para receber curvas e pontos.
+
+    Exemplo:
+        >>> fig = criar_grafico(rotulo_x="raio (cm)", rotulo_y="área total (cm²)")
+    """
+    # A grade usa a cor de apoio bem transparente: ela ajuda a ler os valores sem
+    # chamar mais atenção do que a curva.
+    grade = _cor_transparente(CORES["apoio"], 0.15)
+    fig = go.Figure()
+    fig.update_layout(
+        title=dict(text=titulo, x=0.5) if titulo else None,
+        height=altura,
+        paper_bgcolor=CORES["fundo"],
+        plot_bgcolor=CORES["fundo"],
+        font=dict(color=CORES["texto"], size=13),
+        margin=dict(l=60, r=20, b=50, t=50 if titulo else 20),
+        showlegend=True,
+        xaxis=dict(title=rotulo_x, gridcolor=grade, zerolinecolor=grade),
+        yaxis=dict(title=rotulo_y, gridcolor=grade, zerolinecolor=grade),
+    )
+    return fig
+
+
+def desenhar_curva(
+    fig: go.Figure,
+    xs: Sequence[float],
+    ys: Sequence[float],
+    rotulo: str | None = None,
+    cor: str | None = None,
+    espessura: float = 3,
+    tracejado: bool = False,
+) -> go.Figure:
+    """Desenha uma curva num gráfico 2D, ligando os pontos (xs[0], ys[0]), (xs[1],
+    ys[1]) e assim por diante.
+
+    Parâmetros:
+        fig: o gráfico (criado com `criar_grafico`).
+        xs: os valores no eixo horizontal.
+        ys: os valores no eixo vertical, na mesma ordem.
+        rotulo: nome da curva na legenda (opcional).
+        cor: cor da linha. Se não for informada, usa CORES["reta"].
+        espessura: espessura da linha.
+        tracejado: se True, desenha a linha tracejada.
+
+    Retorna:
+        O mesmo gráfico, com a curva desenhada.
+
+    Exemplo:
+        >>> fig = desenhar_curva(fig, [0, 1, 2], [0, 1, 4], rotulo="y = x²")
+    """
+    fig.add_trace(
+        go.Scatter(
+            x=list(xs), y=list(ys),
+            mode="lines",
+            name=rotulo,
+            showlegend=rotulo is not None,
+            line=dict(
+                color=cor or CORES["reta"],
+                width=espessura,
+                dash="dash" if tracejado else "solid",
+            ),
+        )
+    )
+    return fig
+
+
+def marcar_ponto_no_grafico(
+    fig: go.Figure,
+    x: float,
+    y: float,
+    rotulo: str | None = None,
+    cor: str | None = None,
+    tamanho: float = 10,
+) -> go.Figure:
+    """Marca um ponto num gráfico 2D, com um texto opcional ao lado.
+
+    Parâmetros:
+        fig: o gráfico (criado com `criar_grafico`).
+        x: a posição no eixo horizontal.
+        y: a posição no eixo vertical.
+        rotulo: texto escrito ao lado do ponto (opcional).
+        cor: cor do ponto. Se não for informada, usa CORES["destaque"].
+        tamanho: tamanho do ponto.
+
+    Retorna:
+        O mesmo gráfico, com o ponto marcado.
+
+    Exemplo:
+        >>> fig = marcar_ponto_no_grafico(fig, 2, 4, rotulo="P")
+    """
+    cor = cor or CORES["destaque"]
+    fig.add_trace(
+        go.Scatter(
+            x=[x], y=[y],
+            mode="markers+text" if rotulo else "markers",
+            text=[rotulo] if rotulo else None,
+            textposition="top right",
+            textfont=dict(color=cor),
+            marker=dict(color=cor, size=tamanho),
+            showlegend=False,
+        )
+    )
+    return fig
 
 
 # ==================================================================================
@@ -2224,6 +2371,50 @@ def desenhar_circunferencia(
     if rotulo:
         # O nome fica um pouco para fora da curva, na direção u.
         fig = adicionar_rotulo(fig, c + 1.12 * raio * u, rotulo, cor=cor)
+    return fig
+
+
+def desenhar_curva_no_espaco(
+    fig: go.Figure,
+    pontos: Sequence[Vetor3D],
+    rotulo: str | None = None,
+    cor: str | None = None,
+    espessura: float = 4,
+    tracejado: bool = False,
+) -> go.Figure:
+    """Desenha uma curva no espaço, ligando os pontos na ordem em que aparecem.
+
+    É o que usamos para mostrar uma curva qualquer, como a diretriz de uma
+    superfície cilíndrica. Para uma curva num gráfico 2D, use `desenhar_curva`.
+
+    Parâmetros:
+        fig: a figura.
+        pontos: os pontos da curva, cada um como (x, y, z).
+        rotulo: nome da curva, escrito junto do último ponto (opcional).
+        cor: cor da linha. Se não for informada, usa CORES["reta"].
+        espessura: espessura da linha.
+        tracejado: se True, desenha a linha tracejada.
+
+    Retorna:
+        A mesma figura, com a curva desenhada.
+
+    Exemplo:
+        >>> fig = desenhar_curva_no_espaco(fig, [(0, 0, 0), (1, 1, 0), (2, 0, 0)])
+    """
+    curva = np.array([_como_vetor(p) for p in pontos])
+    cor = cor or CORES["reta"]
+    fig.add_trace(
+        go.Scatter3d(
+            x=curva[:, 0], y=curva[:, 1], z=curva[:, 2],
+            mode="lines",
+            line=dict(
+                color=cor, width=espessura, dash="dash" if tracejado else "solid"
+            ),
+            hoverinfo="skip",
+        )
+    )
+    if rotulo:
+        fig = adicionar_rotulo(fig, curva[-1], rotulo, cor=cor)
     return fig
 
 
@@ -3931,6 +4122,99 @@ def afastar_pecas(
     return afastadas
 
 
+# --- Construtores de corpos redondos (devolvem dados, não desenham) ---
+def secao_meridiana_do_cilindro(
+    centro_da_base: Vetor3D,
+    raio: float,
+    deslocamento: Vetor3D,
+    normal_da_base: Vetor3D = (0, 0, 1),
+    giro: float = 0,
+) -> list[tuple[float, float, float]]:
+    """Devolve os 4 vértices da seção de um cilindro por um plano que contém o eixo.
+
+    No cilindro reto, a seção é um retângulo 2r × h; no oblíquo, um paralelogramo.
+
+    Esta função não desenha nada. As contas internas usam coordenadas e vetores,
+    assunto do módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        centro_da_base: o centro da base de baixo.
+        raio: o raio da base.
+        deslocamento: o vetor do eixo, que leva a base de baixo até a base de cima.
+        normal_da_base: um vetor perpendicular ao plano da base.
+        giro: ângulo (em graus) que escolhe o diâmetro da base usado na seção,
+            girando em torno do centro da base.
+
+    Retorna:
+        Os 4 vértices em ordem: os extremos do diâmetro na base de baixo e, depois,
+        os extremos correspondentes na base de cima, percorrendo o contorno.
+
+    Levanta:
+        ValueError: se o deslocamento for paralelo ao plano da base.
+
+    Exemplo:
+        >>> secao_meridiana_do_cilindro((0, 0, 0), 2, (0, 0, 5))
+        [(2.0, 0.0, 0.0), (-2.0, 0.0, 0.0), (-2.0, 0.0, 5.0), (2.0, 0.0, 5.0)]
+    """
+    _conferir_deslocamento_do_cilindro(deslocamento, normal_da_base)
+    d = _como_vetor(deslocamento)
+
+    # Dois vértices opostos de um quadrado inscrito na base são os extremos de um
+    # diâmetro: aproveitamos a função que já sabe girar dentro do plano da base.
+    quadrado = poligono_regular(
+        4, raio=raio, centro=centro_da_base, normal=normal_da_base, giro=giro
+    )
+    p, q = np.array(quadrado[0]), np.array(quadrado[2])
+    return [_como_ponto(p), _como_ponto(q), _como_ponto(q + d), _como_ponto(p + d)]
+
+
+def secao_plana_do_cilindro_reto(
+    raio: float,
+    altura: float,
+    plano: Plano,
+    centro_da_base: Vetor3D = (0, 0, 0),
+    resolucao: int = 80,
+) -> list[tuple[float, float, float]] | None:
+    """Devolve os pontos da curva em que um plano corta um cilindro reto de eixo
+    vertical, quando essa curva é fechada (uma circunferência ou uma elipse).
+
+    Esta função não desenha nada. As contas internas usam coordenadas e vetores,
+    assunto do módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        raio: o raio da base.
+        altura: a altura do cilindro.
+        plano: o plano de corte, como (ponto, normal).
+        centro_da_base: o centro da base de baixo.
+        resolucao: quantidade de pontos da curva.
+
+    Retorna:
+        A lista de `resolucao` pontos, cada um como (x, y, z), na ordem do contorno.
+        Devolve None se o plano não cortar TODAS as geratrizes entre as duas bases
+        (plano vertical, plano que sai pelas bases ou plano que não toca o cilindro).
+
+    Exemplo:
+        >>> corte = secao_plana_do_cilindro_reto(2, 6, ((0, 0, 3), (0, 0, 1)))
+        >>> len(corte)
+        80
+    """
+    ponto, normal = _como_vetor(plano[0]), _normalizar(plano[1])
+    if abs(normal[2]) <= TOLERANCIA:
+        return None  # plano vertical: é paralelo às geratrizes
+
+    z_da_base = _como_vetor(centro_da_base)[2]
+    pontos = []
+    for x, y, _ in poligono_regular(resolucao, raio=raio, centro=centro_da_base):
+        # Cada geratriz é vertical. Procuramos a altura z em que ela fura o plano:
+        # é onde o vetor que sai do ponto do plano forma 90° com o normal.
+        desnivel = normal[0] * (x - ponto[0]) + normal[1] * (y - ponto[1])
+        z = ponto[2] - desnivel / normal[2]
+        if not z_da_base - TOLERANCIA <= z <= z_da_base + altura + TOLERANCIA:
+            return None  # nesta geratriz, o plano passa fora do cilindro
+        pontos.append(_como_ponto((x, y, z)))
+    return pontos
+
+
 # --- Planificações ---
 def _montar_planificacao(
     lados: int, aresta: float, pecas: Sequence[tuple[int, int]], angulo: float
@@ -4688,6 +4972,253 @@ def desenhar_pilha(
     fig = _desenhar_malha(fig, pontos, triangulos, cores_dos_triangulos, opacidade)
     if mostrar_arestas:
         fig = _desenhar_linhas(fig, arestas, CORES["fundo"], 1)
+    return fig
+
+
+# --- Desenhos de corpos redondos ---
+def desenhar_superficie_cilindrica(
+    fig: go.Figure,
+    curva: Sequence[Vetor3D],
+    deslocamento: Vetor3D,
+    cor: str | None = None,
+    opacidade: float = 0.5,
+    mostrar_geratrizes: int = 0,
+) -> go.Figure:
+    """Desenha a superfície formada pelos segmentos paralelos a `deslocamento` que
+    partem de cada ponto da `curva` (a diretriz).
+
+    Parâmetros:
+        fig: a figura.
+        curva: os pontos da diretriz, cada um como (x, y, z).
+        deslocamento: o vetor de cada geratriz.
+        cor: cor da superfície. Se não for informada, usa CORES["solido"].
+        opacidade: de 0 (invisível) a 1 (totalmente opaca).
+        mostrar_geratrizes: quantas geratrizes destacar como segmentos, igualmente
+            espaçadas ao longo da curva (0 para nenhuma).
+
+    Retorna:
+        A mesma figura, com a superfície desenhada. Com uma curva de menos de 2
+        pontos, não há superfície: a figura volta sem alterações.
+
+    Exemplo:
+        >>> arco = [(np.cos(t), np.sin(t), 0) for t in np.linspace(0, np.pi, 30)]
+        >>> fig = desenhar_superficie_cilindrica(fig, arco, (0, 0, 4))
+    """
+    if len(curva) < 2:
+        return fig
+    pontos = np.array([_como_vetor(p) for p in curva])
+    d = _como_vetor(deslocamento)
+    cor = cor or CORES["solido"]
+
+    # Uma tabela de pontos com duas linhas: a primeira é a própria curva, e a segunda
+    # é a curva "empurrada" pelo deslocamento. O Plotly preenche o que fica entre elas.
+    pontos_de_cima = pontos + d
+    fig.add_trace(
+        go.Surface(
+            x=np.array([pontos[:, 0], pontos_de_cima[:, 0]]),
+            y=np.array([pontos[:, 1], pontos_de_cima[:, 1]]),
+            z=np.array([pontos[:, 2], pontos_de_cima[:, 2]]),
+            # Uma escala de cores com uma cor só: a superfície fica toda da mesma cor.
+            colorscale=[[0, cor], [1, cor]],
+            showscale=False,
+            opacity=opacidade,
+            lighting=dict(ambient=0.8, diffuse=0.3, specular=0.05, fresnel=0),
+            hoverinfo="skip",
+        )
+    )
+
+    if mostrar_geratrizes > 0:
+        # Numa curva fechada, o último ponto repete o primeiro. Nesse caso, a última
+        # geratriz não pode ir até o fim, senão ela ficaria sobre a primeira.
+        fechada = np.linalg.norm(pontos[0] - pontos[-1]) < TOLERANCIA
+        posicoes = np.linspace(
+            0, len(pontos) - 1, mostrar_geratrizes, endpoint=not fechada
+        )
+        segmentos = [
+            (pontos[round(k)], pontos_de_cima[round(k)]) for k in posicoes
+        ]
+        fig = _desenhar_linhas(fig, segmentos, CORES["apoio"], 3)
+    return fig
+
+
+def desenhar_cilindro(
+    fig: go.Figure,
+    centro_da_base: Vetor3D,
+    raio: float,
+    deslocamento: Vetor3D,
+    normal_da_base: Vetor3D = (0, 0, 1),
+    cor: str | None = None,
+    opacidade: float = 0.5,
+    mostrar_bases: bool = True,
+    mostrar_eixo: bool = False,
+    mostrar_geratrizes: int = 0,
+    ate_angulo: float = 360,
+    resolucao: int = 60,
+) -> go.Figure:
+    """Desenha um cilindro circular, reto ou oblíquo.
+
+    A base de baixo é o círculo de centro `centro_da_base` e raio `raio`, no plano de
+    normal `normal_da_base`. A base de cima é a de baixo "empurrada" por
+    `deslocamento` (o vetor do eixo OO'). O cilindro é reto quando o deslocamento é
+    paralelo ao normal da base, e oblíquo nos outros casos.
+
+    Parâmetros:
+        fig: a figura.
+        centro_da_base: o centro O da base de baixo.
+        raio: o raio da base.
+        deslocamento: o vetor que leva a base de baixo até a base de cima.
+        normal_da_base: um vetor perpendicular ao plano da base.
+        cor: cor do cilindro. Se não for informada, usa CORES["solido"].
+        opacidade: de 0 (invisível) a 1 (totalmente opaco).
+        mostrar_bases: se True, desenha as duas bases como discos.
+        mostrar_eixo: se True, desenha o eixo OO' tracejado, com os centros marcados.
+        mostrar_geratrizes: quantas geratrizes destacar (0 para nenhuma).
+        ate_angulo: desenha só a parte da superfície lateral entre 0° e esse ângulo,
+            para mostrar a geratriz "percorrendo" a diretriz. Com um valor menor que
+            360, as bases não são desenhadas.
+        resolucao: quantidade de lados do polígono que imita a circunferência.
+
+    Retorna:
+        A mesma figura, com o cilindro desenhado (no máximo 6 traços do Plotly).
+
+    Levanta:
+        ValueError: se o deslocamento for paralelo ao plano da base, ou se
+            `ate_angulo` não estiver entre 0° e 360°.
+
+    Exemplo:
+        >>> fig = desenhar_cilindro(fig, (0, 0, 0), 2, (0, 0, 5), mostrar_eixo=True)
+    """
+    _conferir_deslocamento_do_cilindro(deslocamento, normal_da_base)
+    if not 0 < ate_angulo <= 360:
+        raise ValueError("O ângulo percorrido deve estar entre 0° e 360°.")
+    centro = _como_vetor(centro_da_base)
+    d = _como_vetor(deslocamento)
+    cor = cor or CORES["solido"]
+
+    # A diretriz é a circunferência da base, imitada por um polígono de muitos lados.
+    # Repetimos o primeiro ponto no fim para a curva fechar, e depois ficamos só com
+    # o trecho pedido.
+    contorno = poligono_regular(
+        resolucao, raio=raio, centro=centro, normal=normal_da_base
+    )
+    passos = max(1, round(resolucao * ate_angulo / 360))
+    diretriz = np.array((contorno + contorno[:1])[: passos + 1])
+
+    fig = desenhar_superficie_cilindrica(
+        fig, diretriz, d, cor=cor, opacidade=opacidade,
+        mostrar_geratrizes=mostrar_geratrizes,
+    )
+
+    if mostrar_bases and ate_angulo >= 360:
+        pontos_do_contorno = np.array(contorno)
+        fig = desenhar_poligono(
+            fig, pontos_do_contorno, cor=cor, opacidade=opacidade, mostrar_borda=False
+        )
+        fig = desenhar_poligono(
+            fig, pontos_do_contorno + d, cor=cor, opacidade=opacidade,
+            mostrar_borda=False,
+        )
+
+    # As beiradas de baixo e de cima, num único traço: elas dão o contorno do sólido.
+    beiradas = [(diretriz[k], diretriz[k + 1]) for k in range(passos)]
+    beiradas += [(diretriz[k] + d, diretriz[k + 1] + d) for k in range(passos)]
+    fig = _desenhar_linhas(fig, beiradas, cor, 3)
+
+    if mostrar_eixo:
+        topo = centro + d
+        fig.add_trace(
+            go.Scatter3d(
+                x=[centro[0], topo[0]], y=[centro[1], topo[1]], z=[centro[2], topo[2]],
+                mode="lines+markers+text",
+                text=["O", "O'"],
+                textposition="middle right",
+                textfont=dict(color=CORES["apoio"]),
+                line=dict(color=CORES["apoio"], width=4, dash="dash"),
+                marker=dict(color=CORES["apoio"], size=4),
+                hoverinfo="skip",
+            )
+        )
+    return fig
+
+
+def desenhar_enrolamento_do_cilindro(
+    fig: go.Figure,
+    raio: float,
+    altura: float,
+    fracao: float,
+    cor: str | None = None,
+    cor_bases: str | None = None,
+    opacidade: float = 0.7,
+) -> go.Figure:
+    """Mostra a superfície lateral de um cilindro reto "enrolando" a partir do
+    retângulo planificado, de medidas 2πr × h.
+
+    Com fracao = 0, o retângulo está plano e as bases são círculos no mesmo plano,
+    tangentes a ele. Com fracao entre 0 e 1, a faixa está curvada num arco e as bases
+    ficam ocultas. Com fracao = 1, o cilindro está fechado, com as bases no lugar.
+
+    As contas internas usam coordenadas, assunto do módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        fig: a figura.
+        raio: o raio da base.
+        altura: a altura do cilindro.
+        fracao: quanto a faixa já enrolou, de 0 (plana) a 1 (fechada).
+        cor: cor da superfície lateral. Se não for informada, usa CORES["solido"].
+        cor_bases: cor das bases. Se não for informada, usa CORES["plano"].
+        opacidade: de 0 (invisível) a 1 (totalmente opaco).
+
+    Retorna:
+        A mesma figura, com a superfície lateral desenhada.
+
+    Levanta:
+        ValueError: se `fracao` estiver fora do intervalo de 0 a 1.
+
+    Exemplo:
+        >>> fig = desenhar_enrolamento_do_cilindro(fig, 2, 5, fracao=0.5)
+    """
+    if not 0 <= fracao <= 1:
+        raise ValueError("A fração de enrolamento deve estar entre 0 e 1.")
+    cor = cor or CORES["solido"]
+    cor_bases = cor_bases or CORES["plano"]
+
+    # Cada ponto da faixa tem uma abscissa, medida ao longo do comprimento 2πr.
+    abscissas = np.linspace(-np.pi * raio, np.pi * raio, 91)
+    if fracao == 0:
+        xs, ys = abscissas, np.zeros_like(abscissas)
+    else:
+        # A faixa vira um arco de circunferência de raio rho. Quanto maior a fração,
+        # menor o arco; com fração 1, rho = r e o arco dá a volta completa. O ângulo
+        # abscissa / rho garante que a faixa não estica: o comprimento se mantém.
+        rho = raio / fracao
+        xs = rho * np.sin(abscissas / rho)
+        ys = rho * (1 - np.cos(abscissas / rho))
+    baixo = np.column_stack([xs, ys, np.zeros_like(xs)])
+
+    fig = desenhar_superficie_cilindrica(
+        fig, baixo, (0, 0, altura), cor=cor, opacidade=opacidade
+    )
+
+    # O contorno da faixa: as beiradas de baixo e de cima e as duas emendas laterais.
+    subida = np.array([0, 0, altura])
+    contorno = [(baixo[k], baixo[k + 1]) for k in range(len(baixo) - 1)]
+    contorno += [(p + subida, q + subida) for p, q in contorno]
+    contorno += [(baixo[0], baixo[0] + subida), (baixo[-1], baixo[-1] + subida)]
+    fig = _desenhar_linhas(fig, contorno, CORES["apoio"], 3)
+
+    if fracao == 0:
+        centros, normal = [(0, 0, -raio), (0, 0, altura + raio)], (0, 1, 0)
+    elif fracao == 1:
+        centros, normal = [(0, raio, 0), (0, raio, altura)], (0, 0, 1)
+    else:
+        centros, normal = [], (0, 0, 1)
+    for centro in centros:
+        fig = desenhar_poligono(
+            fig,
+            poligono_regular(60, raio=raio, centro=centro, normal=normal),
+            cor=cor_bases,
+            opacidade=opacidade,
+        )
     return fig
 
 
