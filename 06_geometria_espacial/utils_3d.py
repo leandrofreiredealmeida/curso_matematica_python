@@ -62,6 +62,10 @@ v10 — notebook 10: pirâmide (geral e regular), planificação da pirâmide re
 v11 — notebook 11: superfícies cilíndricas, cilindro (reto e oblíquo, inteiro ou
      parcial), enrolamento da superfície lateral, seção meridiana, seção plana do
      cilindro reto, gráficos 2D (figura, curva e ponto), curva no espaço
+v12 — notebook 12: superfícies cônicas (com folha oposta), cone (reto e oblíquo,
+     inteiro ou parcial), enrolamento do setor circular, seção meridiana do cone,
+     seções planas do cone duplo, linha poligonal 3D (parâmetro opcional `fechar`
+     em desenhar_curva_no_espaco)
 
 Semiplanos e diedros
 --------------------
@@ -463,6 +467,18 @@ def _conferir_deslocamento_do_cilindro(
             "O deslocamento não pode ser paralelo ao plano da base: o cilindro ficaria "
             "achatado."
         )
+
+
+def _conferir_vertice_do_cone(
+    vertice: Vetor3D, centro_da_base: Vetor3D, normal_da_base: Vetor3D
+) -> None:
+    """Levanta ValueError se o vértice do cone estiver no plano da base."""
+    subida = _como_vetor(vertice) - _como_vetor(centro_da_base)
+    n = _normalizar(normal_da_base)
+    # A "altura com sinal" do vértice em relação ao plano da base é o produto escalar
+    # com o normal; se ela é (quase) zero, o vértice está no próprio plano.
+    if abs(np.dot(subida, n)) <= TOLERANCIA * max(np.linalg.norm(subida), 1.0):
+        raise ValueError("O vértice está no plano da base: o cone ficaria achatado.")
 
 
 # ==================================================================================
@@ -2381,11 +2397,14 @@ def desenhar_curva_no_espaco(
     cor: str | None = None,
     espessura: float = 4,
     tracejado: bool = False,
+    fechar: bool = False,
 ) -> go.Figure:
-    """Desenha uma curva no espaço, ligando os pontos na ordem em que aparecem.
+    """Desenha uma curva no espaço (uma linha poligonal), ligando os pontos na ordem
+    em que aparecem.
 
     É o que usamos para mostrar uma curva qualquer, como a diretriz de uma
-    superfície cilíndrica. Para uma curva num gráfico 2D, use `desenhar_curva`.
+    superfície cilíndrica ou uma seção cônica. Para uma curva num gráfico 2D, use
+    `desenhar_curva`.
 
     Parâmetros:
         fig: a figura.
@@ -2394,14 +2413,19 @@ def desenhar_curva_no_espaco(
         cor: cor da linha. Se não for informada, usa CORES["reta"].
         espessura: espessura da linha.
         tracejado: se True, desenha a linha tracejada.
+        fechar: se True, liga também o último ponto ao primeiro (para curvas
+            fechadas, como uma elipse).
 
     Retorna:
-        A mesma figura, com a curva desenhada.
+        A mesma figura, com a curva desenhada (um único traço do Plotly).
 
     Exemplo:
         >>> fig = desenhar_curva_no_espaco(fig, [(0, 0, 0), (1, 1, 0), (2, 0, 0)])
     """
     curva = np.array([_como_vetor(p) for p in pontos])
+    if fechar and np.linalg.norm(curva[0] - curva[-1]) > TOLERANCIA:
+        # Repetimos o primeiro ponto no fim: a caneta volta ao começo da curva.
+        curva = np.vstack([curva, curva[:1]])
     cor = cor or CORES["reta"]
     fig.add_trace(
         go.Scatter3d(
@@ -4215,6 +4239,179 @@ def secao_plana_do_cilindro_reto(
     return pontos
 
 
+def secao_meridiana_do_cone(
+    vertice: Vetor3D,
+    centro_da_base: Vetor3D,
+    raio: float,
+    normal_da_base: Vetor3D = (0, 0, 1),
+    giro: float = 0,
+) -> list[tuple[float, float, float]]:
+    """Devolve os 3 vértices da seção de um cone por um plano que contém o vértice e
+    o centro da base.
+
+    A seção é o triângulo formado pelos extremos de um diâmetro da base e pelo
+    vértice do cone. No cone reto, é um triângulo isósceles de base 2r e altura h.
+
+    Esta função não desenha nada. As contas internas usam coordenadas e vetores,
+    assunto do módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        vertice: o vértice V do cone.
+        centro_da_base: o centro O da base.
+        raio: o raio da base.
+        normal_da_base: um vetor perpendicular ao plano da base.
+        giro: ângulo (em graus) que escolhe o diâmetro da base usado na seção,
+            girando em torno do centro da base.
+
+    Retorna:
+        Os 3 vértices do triângulo: os extremos do diâmetro e, por último, o
+        vértice do cone.
+
+    Levanta:
+        ValueError: se o vértice estiver no plano da base.
+
+    Exemplo:
+        >>> secao_meridiana_do_cone((0, 0, 4), (0, 0, 0), 3)
+        [(3.0, 0.0, 0.0), (-3.0, 0.0, 0.0), (0.0, 0.0, 4.0)]
+    """
+    _conferir_vertice_do_cone(vertice, centro_da_base, normal_da_base)
+    # Dois vértices opostos de um quadrado inscrito na base são os extremos de um
+    # diâmetro, como na seção meridiana do cilindro.
+    quadrado = poligono_regular(
+        4, raio=raio, centro=centro_da_base, normal=normal_da_base, giro=giro
+    )
+    return [quadrado[0], quadrado[2], _como_ponto(vertice)]
+
+
+def secao_plana_do_cone_duplo(
+    semiabertura: float,
+    plano: Plano,
+    altura: float = 3,
+    vertice: Vetor3D = (0, 0, 0),
+    resolucao: int = 200,
+) -> list[list[tuple[float, float, float]]]:
+    """Devolve as curvas em que um plano corta uma superfície cônica de duas folhas.
+
+    A superfície tem eixo vertical, vértice em `vertice` e semiabertura
+    `semiabertura` (o ângulo entre o eixo e as geratrizes). Como uma superfície
+    infinita não cabe na tela, ela é limitada a `altura` acima e abaixo do vértice:
+    só os pontos da seção dentro desse limite são devolvidos.
+
+    Conforme a inclinação do plano, aparecem:
+    - circunferência ou elipse: 1 curva fechada (o último ponto repete o primeiro);
+    - parábola: 1 curva aberta;
+    - hipérbole: 2 curvas, uma em cada folha.
+    Uma elipse muito alongada pode sair do limite de altura e aparecer "cortada".
+
+    Esta função não desenha nada. As contas internas usam coordenadas e vetores,
+    assunto do módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        semiabertura: o ângulo, em graus, entre o eixo e as geratrizes (entre 0° e
+            90°).
+        plano: o plano de corte, como (ponto, normal). Ele não pode passar pelo
+            vértice.
+        altura: até que distância acima e abaixo do vértice a superfície vai.
+        vertice: o vértice da superfície.
+        resolucao: quantas geratrizes são examinadas (mais geratrizes, curvas mais
+            lisas).
+
+    Retorna:
+        A lista de curvas; cada curva é uma lista de pontos (x, y, z). A lista fica
+        vazia se o plano não cortar a superfície dentro do limite de altura.
+
+    Levanta:
+        ValueError: se a semiabertura não estiver entre 0° e 90°, ou se o plano
+            passar pelo vértice.
+
+    Exemplo:
+        >>> curvas = secao_plana_do_cone_duplo(30, ((0, 0, 1), (0, 0, 1)))
+        >>> len(curvas)  # o plano horizontal dá uma circunferência
+        1
+    """
+    if not 0 < semiabertura < 90:
+        raise ValueError("A semiabertura deve estar entre 0° e 90°.")
+    v = _como_vetor(vertice)
+    ponto, normal = _como_vetor(plano[0]), _normalizar(plano[1])
+    # A distância (com sinal) do vértice ao plano. Se ela é zero, o plano passa pelo
+    # vértice e a seção "degenera" num ponto, numa reta ou num par de retas.
+    distancia = float(np.dot(normal, ponto - v))
+    if abs(distancia) <= TOLERANCIA:
+        raise ValueError(
+            "O plano passa pelo vértice: a seção seria um ponto, uma reta ou um par "
+            "de retas, e não uma curva."
+        )
+    abertura = np.tan(np.radians(semiabertura))
+
+    def ponto_na_geratriz(phi: float) -> tuple[float, np.ndarray] | None:
+        """Onde o plano corta a geratriz de azimute phi (ou None, se não corta
+        dentro do limite de altura)."""
+        # A geratriz é a reta V + t · d: andando t para cima, ela se afasta
+        # t · tan(semiabertura) do eixo. Com t negativo, estamos na folha de baixo.
+        d = np.array([abertura * np.cos(phi), abertura * np.sin(phi), 1.0])
+        inclinacao = np.dot(normal, d)
+        if abs(inclinacao) <= TOLERANCIA:
+            return None  # geratriz paralela ao plano: não há encontro
+        t = distancia / inclinacao
+        if abs(t) > altura:
+            return None  # o encontro existe, mas fica fora do pedaço desenhado
+        return t, v + t * d
+
+    def refinar(dentro: float, fora: float) -> np.ndarray:
+        """Aproxima, por bissecção, a geratriz em que a curva sai do pedaço
+        desenhado: o intervalo entre um azimute "dentro" e um "fora" é dividido ao
+        meio muitas vezes."""
+        for _ in range(40):
+            meio = (dentro + fora) / 2
+            if ponto_na_geratriz(meio) is None:
+                fora = meio
+            else:
+                dentro = meio
+        return ponto_na_geratriz(dentro)[1]
+
+    passo = 2 * np.pi / resolucao
+    angulos = [k * passo for k in range(resolucao)]
+    encontros = [ponto_na_geratriz(phi) for phi in angulos]
+
+    if all(e is not None for e in encontros):
+        # O plano corta todas as geratrizes: a curva é fechada.
+        curva = [_como_ponto(e[1]) for e in encontros]
+        return [curva + curva[:1]]
+    if all(e is None for e in encontros):
+        return []
+
+    # Começamos a volta numa geratriz que o plano NÃO corta. Assim, cada trecho
+    # contínuo de geratrizes cortadas aparece inteiro, sem ser partido no meio.
+    inicio = next(k for k, e in enumerate(encontros) if e is None)
+    curvas: list[list[tuple[float, float, float]]] = []
+    trecho: list[np.ndarray] = []
+    sinal_anterior = 0.0
+    for passo_da_volta in range(1, resolucao + 1):
+        k = (inicio + passo_da_volta) % resolucao
+        phi = angulos[inicio] + passo_da_volta * passo
+        encontro = encontros[k]
+        if encontro is None:
+            if trecho:
+                trecho.append(refinar(phi - passo, phi))
+                curvas.append([_como_ponto(p) for p in trecho])
+                trecho = []
+            continue
+        t, p = encontro
+        if trecho and np.sign(t) != sinal_anterior:
+            # Mudou de folha: começa outra curva.
+            curvas.append([_como_ponto(q) for q in trecho])
+            trecho = []
+        if not trecho:
+            anterior = encontros[(k - 1) % resolucao]
+            if anterior is None:
+                trecho.append(refinar(phi, phi - passo))
+        trecho.append(p)
+        sinal_anterior = np.sign(t)
+    if trecho:
+        curvas.append([_como_ponto(p) for p in trecho])
+    return curvas
+
+
 # --- Planificações ---
 def _montar_planificacao(
     lados: int, aresta: float, pecas: Sequence[tuple[int, int]], angulo: float
@@ -5217,6 +5414,261 @@ def desenhar_enrolamento_do_cilindro(
             fig,
             poligono_regular(60, raio=raio, centro=centro, normal=normal),
             cor=cor_bases,
+            opacidade=opacidade,
+        )
+    return fig
+
+
+def desenhar_superficie_conica(
+    fig: go.Figure,
+    vertice: Vetor3D,
+    curva: Sequence[Vetor3D],
+    cor: str | None = None,
+    opacidade: float = 0.5,
+    mostrar_geratrizes: int = 0,
+    prolongar: float = 0,
+) -> go.Figure:
+    """Desenha a superfície formada pelos segmentos que ligam o `vertice` a cada ponto
+    da `curva` (a diretriz).
+
+    Parâmetros:
+        fig: a figura.
+        vertice: o vértice V da superfície.
+        curva: os pontos da diretriz, cada um como (x, y, z).
+        cor: cor da superfície. Se não for informada, usa CORES["solido"].
+        opacidade: de 0 (invisível) a 1 (totalmente opaca).
+        mostrar_geratrizes: quantas geratrizes destacar como segmentos, igualmente
+            espaçadas ao longo da curva (0 para nenhuma).
+        prolongar: se for maior que 0, desenha também a FOLHA OPOSTA, prolongando
+            cada geratriz para o outro lado do vértice por essa fração do seu
+            comprimento. Com prolongar = 1, as duas folhas ficam simétricas.
+
+    Retorna:
+        A mesma figura, com a superfície desenhada (no máximo 2 traços do Plotly).
+        Com uma curva de menos de 2 pontos, não há superfície: a figura volta sem
+        alterações.
+
+    Exemplo:
+        >>> roda = [(np.cos(t), np.sin(t), 2) for t in np.linspace(0, 2 * np.pi, 61)]
+        >>> fig = desenhar_superficie_conica(fig, (0, 0, 0), roda, prolongar=1)
+    """
+    if len(curva) < 2:
+        return fig
+    pontos = np.array([_como_vetor(p) for p in curva])
+    v = _como_vetor(vertice)
+    cor = cor or CORES["solido"]
+
+    # Uma tabela de pontos: uma linha só com o vértice (repetido) e uma linha com a
+    # curva. O Plotly preenche o que fica entre elas, e cada coluna da tabela vira uma
+    # geratriz. Para a folha oposta, acrescentamos uma linha com os pontos
+    # "espelhados" do outro lado do vértice: V - prolongar · (P - V).
+    linhas = [np.tile(v, (len(pontos), 1)), pontos]
+    if prolongar > 0:
+        opostos = v - prolongar * (pontos - v)
+        linhas = [opostos, *linhas]
+    grade = np.array(linhas)
+    fig.add_trace(
+        go.Surface(
+            x=grade[:, :, 0], y=grade[:, :, 1], z=grade[:, :, 2],
+            # Uma escala de cores com uma cor só: a superfície fica toda da mesma cor.
+            colorscale=[[0, cor], [1, cor]],
+            showscale=False,
+            opacity=opacidade,
+            lighting=dict(ambient=0.8, diffuse=0.3, specular=0.05, fresnel=0),
+            hoverinfo="skip",
+        )
+    )
+
+    if mostrar_geratrizes > 0:
+        # Numa curva fechada, o último ponto repete o primeiro: a última geratriz não
+        # pode ir até o fim, senão ficaria sobre a primeira.
+        fechada = np.linalg.norm(pontos[0] - pontos[-1]) < TOLERANCIA
+        posicoes = np.linspace(
+            0, len(pontos) - 1, mostrar_geratrizes, endpoint=not fechada
+        )
+        segmentos = [(grade[0, round(k)], pontos[round(k)]) for k in posicoes]
+        fig = _desenhar_linhas(fig, segmentos, CORES["apoio"], 3)
+    return fig
+
+
+def desenhar_cone(
+    fig: go.Figure,
+    vertice: Vetor3D,
+    centro_da_base: Vetor3D,
+    raio: float,
+    normal_da_base: Vetor3D = (0, 0, 1),
+    cor: str | None = None,
+    opacidade: float = 0.5,
+    mostrar_base: bool = True,
+    mostrar_eixo: bool = False,
+    mostrar_geratrizes: int = 0,
+    ate_angulo: float = 360,
+    resolucao: int = 60,
+) -> go.Figure:
+    """Desenha um cone circular, reto ou oblíquo.
+
+    A base é o círculo de centro `centro_da_base` e raio `raio`, no plano de normal
+    `normal_da_base`. O cone é reto quando o vértice está na reta perpendicular à
+    base que passa pelo centro, e oblíquo nos outros casos.
+
+    O vértice pode ficar de qualquer lado da base. Por exemplo, para desenhar um
+    cone "dentro" de um cilindro, com o vértice no centro do cilindro e a base
+    coincidindo com uma base do cilindro, basta escolher esses pontos.
+
+    Parâmetros:
+        fig: a figura.
+        vertice: o vértice V do cone.
+        centro_da_base: o centro O da base.
+        raio: o raio da base.
+        normal_da_base: um vetor perpendicular ao plano da base.
+        cor: cor do cone. Se não for informada, usa CORES["solido"].
+        opacidade: de 0 (invisível) a 1 (totalmente opaco).
+        mostrar_base: se True, desenha a base como um disco.
+        mostrar_eixo: se True, desenha o eixo VO tracejado, com V e O marcados.
+        mostrar_geratrizes: quantas geratrizes destacar (0 para nenhuma).
+        ate_angulo: desenha só a parte da superfície lateral entre 0° e esse ângulo.
+            Com um valor menor que 360, a base não é desenhada.
+        resolucao: quantidade de lados do polígono que imita a circunferência.
+
+    Retorna:
+        A mesma figura, com o cone desenhado (no máximo 5 traços do Plotly).
+
+    Levanta:
+        ValueError: se o vértice estiver no plano da base, ou se `ate_angulo` não
+            estiver entre 0° e 360°.
+
+    Exemplo:
+        >>> fig = desenhar_cone(fig, (0, 0, 4), (0, 0, 0), 3, mostrar_eixo=True)
+    """
+    _conferir_vertice_do_cone(vertice, centro_da_base, normal_da_base)
+    if not 0 < ate_angulo <= 360:
+        raise ValueError("O ângulo percorrido deve estar entre 0° e 360°.")
+    v = _como_vetor(vertice)
+    centro = _como_vetor(centro_da_base)
+    cor = cor or CORES["solido"]
+
+    # A diretriz é a circunferência da base, imitada por um polígono de muitos lados.
+    # Repetimos o primeiro ponto no fim para a curva fechar, e depois ficamos só com
+    # o trecho pedido.
+    contorno = poligono_regular(
+        resolucao, raio=raio, centro=centro, normal=normal_da_base
+    )
+    passos = max(1, round(resolucao * ate_angulo / 360))
+    diretriz = np.array((contorno + contorno[:1])[: passos + 1])
+
+    fig = desenhar_superficie_conica(
+        fig, v, diretriz, cor=cor, opacidade=opacidade,
+        mostrar_geratrizes=mostrar_geratrizes,
+    )
+
+    if mostrar_base and ate_angulo >= 360:
+        fig = desenhar_poligono(
+            fig, contorno, cor=cor, opacidade=opacidade, mostrar_borda=False
+        )
+
+    # A beirada da base, num único traço: ela dá o contorno do sólido.
+    beirada = [(diretriz[k], diretriz[k + 1]) for k in range(passos)]
+    fig = _desenhar_linhas(fig, beirada, cor, 3)
+
+    if mostrar_eixo:
+        fig.add_trace(
+            go.Scatter3d(
+                x=[v[0], centro[0]], y=[v[1], centro[1]], z=[v[2], centro[2]],
+                mode="lines+markers+text",
+                text=["V", "O"],
+                textposition="middle right",
+                textfont=dict(color=CORES["apoio"]),
+                line=dict(color=CORES["apoio"], width=4, dash="dash"),
+                marker=dict(color=CORES["apoio"], size=4),
+                hoverinfo="skip",
+            )
+        )
+    return fig
+
+
+def desenhar_enrolamento_do_cone(
+    fig: go.Figure,
+    geratriz: float,
+    angulo_do_setor: float,
+    fracao: float,
+    cor: str | None = None,
+    cor_base: str | None = None,
+    opacidade: float = 0.7,
+) -> go.Figure:
+    """Mostra um setor circular "enrolando" até virar a superfície lateral de um
+    cone reto, como um chapéu de festa sendo montado.
+
+    O setor tem raio `geratriz` (g) e ângulo central `angulo_do_setor` (θ). Para cada
+    fração, o setor fica apoiado num cone reto de geratriz g cuja planificação
+    completa teria ângulo Θ = θ + (360° − θ) · (1 − fracao):
+    - com fracao = 0, Θ = 360°: o cone é "achatado" e o setor aparece plano;
+    - com fracao = 1, Θ = θ: o setor dá a volta completa e o cone fecha. A base, um
+      disco de raio r = g · θ / 360°, é desenhada.
+    O papel não estica: cada ponto do setor fica à mesma distância do vértice.
+
+    As contas internas usam coordenadas, assunto do módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        fig: a figura.
+        geratriz: o raio do setor, que vira a geratriz do cone.
+        angulo_do_setor: o ângulo central do setor, em graus.
+        fracao: quanto o setor já enrolou, de 0 (plano) a 1 (cone fechado).
+        cor: cor do setor. Se não for informada, usa CORES["solido"].
+        cor_base: cor da base. Se não for informada, usa CORES["plano"].
+        opacidade: de 0 (invisível) a 1 (totalmente opaco).
+
+    Retorna:
+        A mesma figura, com o setor desenhado. O vértice do cone fica no eixo
+        vertical e a base, no plano horizontal mais baixo do desenho.
+
+    Levanta:
+        ValueError: se o ângulo do setor não estiver entre 0° e 360°, ou se a
+            fração estiver fora do intervalo de 0 a 1.
+
+    Exemplo:
+        >>> fig = desenhar_enrolamento_do_cone(fig, 5, 216, fracao=0.5)
+    """
+    if not 0 < angulo_do_setor < 360:
+        raise ValueError("O ângulo do setor deve estar entre 0° e 360°.")
+    if not 0 <= fracao <= 1:
+        raise ValueError("A fração de enrolamento deve estar entre 0 e 1.")
+    cor = cor or CORES["solido"]
+    cor_base = cor_base or CORES["plano"]
+
+    # O cone de apoio desta etapa: seu raio sai do comprimento do arco (r = g·Θ/360°)
+    # e sua altura, de Pitágoras no triângulo vértice-centro-borda.
+    angulo_de_apoio = angulo_do_setor + (360 - angulo_do_setor) * (1 - fracao)
+    raio_de_apoio = geratriz * angulo_de_apoio / 360
+    altura_de_apoio = np.sqrt(max(geratriz**2 - raio_de_apoio**2, 0.0))
+    v = np.array([0.0, 0.0, altura_de_apoio])
+
+    # A borda curva do setor. Um ponto da borda com ângulo phi (medido a partir do
+    # meio do setor) vai para a geratriz de azimute psi = phi · 360° / Θ: como o
+    # arco não estica, um ângulo menor no setor "esticado" vira um giro maior em
+    # volta do eixo.
+    phis = np.radians(np.linspace(-angulo_do_setor / 2, angulo_do_setor / 2, 91))
+    psis = phis * 360 / angulo_de_apoio
+    borda = np.column_stack([
+        raio_de_apoio * np.cos(psis),
+        raio_de_apoio * np.sin(psis),
+        np.zeros_like(psis),
+    ])
+
+    # Cada segmento do vértice à borda é uma geratriz: a superfície cônica liga o
+    # vértice a cada ponto da borda.
+    fig = desenhar_superficie_conica(fig, v, borda, cor=cor, opacidade=opacidade)
+
+    # O contorno do setor: a borda curva e os dois raios das pontas (as emendas).
+    contorno = [(borda[k], borda[k + 1]) for k in range(len(borda) - 1)]
+    contorno += [(v, borda[0]), (v, borda[-1])]
+    fig = _desenhar_linhas(fig, contorno, CORES["apoio"], 3)
+
+    if fracao == 1:
+        raio_da_base = geratriz * angulo_do_setor / 360
+        fig = desenhar_poligono(
+            fig,
+            poligono_regular(60, raio=raio_da_base),
+            cor=cor_base,
             opacidade=opacidade,
         )
     return fig
