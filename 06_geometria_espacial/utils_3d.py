@@ -66,6 +66,11 @@ v12 — notebook 12: superfícies cônicas (com folha oposta), cone (reto e obl�
      inteiro ou parcial), enrolamento do setor circular, seção meridiana do cone,
      seções planas do cone duplo, linha poligonal 3D (parâmetro opcional `fechar`
      em desenhar_curva_no_espaco)
+v13 — notebook 13: ponto na esfera por latitude e longitude, seção plana da esfera,
+     poliedro que aproxima a esfera, meridianos, paralelos, fuso e cunha;
+     desenhar_esfera passa a aceitar faixas de latitude; coroa circular (anel);
+     desenhar_poliedro ganha o parâmetro opcional `traco_unico` (poliedros com
+     milhares de faces)
 
 Semiplanos e diedros
 --------------------
@@ -479,6 +484,13 @@ def _conferir_vertice_do_cone(
     # com o normal; se ela é (quase) zero, o vértice está no próprio plano.
     if abs(np.dot(subida, n)) <= TOLERANCIA * max(np.linalg.norm(subida), 1.0):
         raise ValueError("O vértice está no plano da base: o cone ficaria achatado.")
+
+
+def _conferir_angulo_do_fuso(longitude_inicial: float, longitude_final: float) -> None:
+    """Levanta ValueError se o ângulo do fuso (ou da cunha) não estiver entre 0° e
+    360°."""
+    if not 0 < longitude_final - longitude_inicial <= 360:
+        raise ValueError("O ângulo do fuso deve estar entre 0° e 360°.")
 
 
 # ==================================================================================
@@ -2390,6 +2402,82 @@ def desenhar_circunferencia(
     return fig
 
 
+def desenhar_coroa_circular(
+    fig: go.Figure,
+    centro: Vetor3D,
+    raio_externo: float,
+    raio_interno: float,
+    normal: Vetor3D = (0, 0, 1),
+    cor: str | None = None,
+    opacidade: float = 0.6,
+    resolucao: int = 80,
+) -> go.Figure:
+    """Desenha uma coroa circular (um anel): a região entre duas circunferências
+    de mesmo centro, preenchida, com as duas bordas.
+
+    Parâmetros:
+        fig: a figura.
+        centro: o centro comum das duas circunferências, como (x, y, z).
+        raio_externo: o raio da circunferência de fora.
+        raio_interno: o raio da circunferência de dentro (com 0, a coroa vira um
+            círculo cheio).
+        normal: vetor perpendicular ao plano da coroa.
+        cor: cor da coroa. Se não for informada, usa CORES["destaque"].
+        opacidade: de 0 (invisível) a 1 (totalmente opaca).
+        resolucao: quantidade de lados dos polígonos que imitam as circunferências.
+
+    Retorna:
+        A mesma figura, com a coroa desenhada.
+
+    Levanta:
+        ValueError: se o raio interno for negativo ou maior que o externo.
+
+    Exemplo:
+        >>> fig = desenhar_coroa_circular(fig, (0, 0, 1), 3, 1)
+    """
+    if not 0 <= raio_interno <= raio_externo:
+        raise ValueError(
+            "O raio interno deve estar entre 0 e o raio externo."
+        )
+    c = _como_vetor(centro)
+    u, v = _base_do_plano(normal)
+    cor = cor or CORES["destaque"]
+
+    # Os pontos das duas circunferências, com os mesmos ângulos: o ponto k de fora
+    # fica "alinhado" com o ponto k de dentro, na mesma direção a partir do centro.
+    angulos = np.linspace(0, 2 * np.pi, resolucao + 1)
+    direcoes = [np.cos(t) * u + np.sin(t) * v for t in angulos]
+    fora = [c + raio_externo * d for d in direcoes]
+    dentro = [c + raio_interno * d for d in direcoes]
+
+    # Cada "fatia" da coroa entre os ângulos k e k + 1 é um trapézio, dividido em
+    # dois triângulos. Os pontos de fora são 0 a n, e os de dentro, n + 1 a 2n + 1.
+    n = resolucao + 1
+    triangulos = []
+    for k in range(resolucao):
+        triangulos.append((k, k + 1, n + k + 1))
+        triangulos.append((k, n + k + 1, n + k))
+    pontos = np.array(fora + dentro)
+    fig.add_trace(
+        go.Mesh3d(
+            x=pontos[:, 0], y=pontos[:, 1], z=pontos[:, 2],
+            i=[t[0] for t in triangulos],
+            j=[t[1] for t in triangulos],
+            k=[t[2] for t in triangulos],
+            color=cor,
+            opacity=opacidade,
+            lighting=dict(ambient=1, diffuse=0, specular=0, fresnel=0),
+            hoverinfo="skip",
+        )
+    )
+    # As duas bordas, num único traço.
+    bordas = [(fora[k], fora[k + 1]) for k in range(resolucao)]
+    if raio_interno > 0:
+        bordas += [(dentro[k], dentro[k + 1]) for k in range(resolucao)]
+    fig = _desenhar_linhas(fig, bordas, cor, 3)
+    return fig
+
+
 def desenhar_curva_no_espaco(
     fig: go.Figure,
     pontos: Sequence[Vetor3D],
@@ -3301,12 +3389,14 @@ def desenhar_esfera(
     cor: str | None = None,
     opacidade: float = 0.25,
     resolucao: int = 40,
+    latitude_minima: float = -90,
+    latitude_maxima: float = 90,
 ) -> go.Figure:
     """Desenha uma superfície esférica semitransparente.
 
     A superfície esférica é o conjunto dos pontos do espaço que estão a uma mesma
-    distância (o raio) do centro (notebook 04). O estudo completo da esfera fica
-    para o notebook 13.
+    distância (o raio) do centro (notebook 04). O estudo completo da esfera está no
+    notebook 13.
 
     Parâmetros:
         fig: a figura.
@@ -3317,13 +3407,28 @@ def desenhar_esfera(
         opacidade: de 0 (invisível) a 1 (totalmente opaca).
         resolucao: quantidade de divisões usadas no desenho (mais divisões,
             superfície mais lisa).
+        latitude_minima: a latitude (em graus, de −90 a 90) onde o desenho começa.
+            Com o padrão, −90°, ele começa no polo sul.
+        latitude_maxima: a latitude (em graus) onde o desenho termina. Com o padrão,
+            90°, ele vai até o polo norte. Com latitude_minima=0, só a semiesfera de
+            cima é desenhada.
 
     Retorna:
-        A mesma figura, com a esfera desenhada.
+        A mesma figura, com a esfera (ou a faixa de esfera) desenhada.
+
+    Levanta:
+        ValueError: se as latitudes não estiverem entre −90° e 90°, com a mínima
+            menor que a máxima.
 
     Exemplo:
         >>> fig = desenhar_esfera(fig, (0, 0, 0), 2, rotulo="esfera")
+        >>> fig = desenhar_esfera(fig, (5, 0, 0), 2, latitude_minima=0)  # semiesfera
     """
+    if not -90 <= latitude_minima < latitude_maxima <= 90:
+        raise ValueError(
+            "As latitudes devem estar entre −90° e 90°, com a mínima menor que a "
+            "máxima."
+        )
     c = _como_vetor(centro)
     cor = cor or CORES["solido"]
 
@@ -3332,7 +3437,11 @@ def desenhar_esfera(
     # Seno e cosseno transformam esses dois ângulos em posições no espaço.
     longitude, latitude = np.meshgrid(
         np.linspace(0, 2 * np.pi, resolucao + 1),
-        np.linspace(-np.pi / 2, np.pi / 2, resolucao // 2 + 1),
+        np.linspace(
+            np.radians(latitude_minima),
+            np.radians(latitude_maxima),
+            resolucao // 2 + 1,
+        ),
     )
     x = c[0] + raio * np.cos(latitude) * np.cos(longitude)
     y = c[1] + raio * np.cos(latitude) * np.sin(longitude)
@@ -4412,6 +4521,149 @@ def secao_plana_do_cone_duplo(
     return curvas
 
 
+def ponto_na_esfera(
+    latitude: float,
+    longitude: float,
+    raio: float = 1,
+    centro: Vetor3D = (0, 0, 0),
+) -> tuple[float, float, float]:
+    """Devolve o ponto da superfície esférica com a latitude e a longitude dadas.
+
+    Como num globo terrestre: o polo norte fica em cima (na direção +z), a latitude
+    é medida a partir do equador (de −90° no polo sul a 90° no polo norte) e a
+    longitude 0° fica na direção +x, crescendo no sentido anti-horário visto de
+    cima.
+
+    Esta função não desenha nada. As contas internas usam coordenadas, assunto do
+    módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        latitude: a latitude φ, em graus (de −90 a 90).
+        longitude: a longitude λ, em graus.
+        raio: o raio R da esfera.
+        centro: o centro da esfera.
+
+    Retorna:
+        O ponto (x, y, z) da superfície esférica.
+
+    Exemplo:
+        >>> ponto_na_esfera(0, 90, raio=2)
+        (0.0, 2.0, 0.0)
+    """
+    phi = np.radians(latitude)
+    lam = np.radians(longitude)
+    # O raio do paralelo do ponto é R·cos(φ) (notebook 13); andando nele pela
+    # longitude, como no ciclo trigonométrico, e subindo R·sen(φ), chegamos ao ponto.
+    raio_do_paralelo = raio * np.cos(phi)
+    deslocamento = np.array([
+        raio_do_paralelo * np.cos(lam),
+        raio_do_paralelo * np.sin(lam),
+        raio * np.sin(phi),
+    ])
+    return _como_ponto(_como_vetor(centro) + deslocamento)
+
+
+def secao_da_esfera(
+    centro: Vetor3D, raio: float, plano: Plano
+) -> tuple[tuple[float, float, float], float] | None:
+    """Devolve o centro e o raio da seção de uma esfera por um plano.
+
+    A seção é um círculo cujo centro é o pé da perpendicular baixada do centro da
+    esfera ao plano. Se o plano é tangente, a seção é um único ponto (raio 0).
+
+    Esta função não desenha nada. As contas internas usam vetores, assunto do
+    módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        centro: o centro da esfera.
+        raio: o raio R da esfera.
+        plano: o plano de corte, como (ponto, normal).
+
+    Retorna:
+        Uma tupla (centro_da_secao, raio_da_secao). Se o plano for tangente, o raio
+        da seção é 0 e o centro da seção é o ponto de tangência. Se o plano não
+        tocar a esfera, devolve None.
+
+    Exemplo:
+        >>> secao_da_esfera((0, 0, 0), 5, ((0, 0, 3), (0, 0, 1)))
+        ((0.0, 0.0, 3.0), 4.0)
+    """
+    o = _como_vetor(centro)
+    pe = _como_vetor(pe_da_perpendicular_ao_plano(o, plano))
+    distancia = float(np.linalg.norm(pe - o))
+    # A tolerância é proporcional ao tamanho da esfera, para os arredondamentos.
+    folga = 1e-9 * max(raio, 1.0)
+    if distancia > raio + folga:
+        return None  # plano exterior: a seção é vazia
+    if abs(distancia - raio) <= folga:
+        return _como_ponto(pe), 0.0  # plano tangente: um único ponto
+    # Pitágoras no triângulo retângulo formado pelo centro, o pé da perpendicular e
+    # um ponto da borda da seção: r² = R² − d².
+    return _como_ponto(pe), float(np.sqrt(raio**2 - distancia**2))
+
+
+def poliedro_aproximando_esfera(
+    raio: float, subdivisoes: int, centro: Vetor3D = (0, 0, 0)
+) -> tuple[list[tuple[float, float, float]], list[list[int]]]:
+    """Devolve um poliedro de faces triangulares que aproxima a esfera, como um domo
+    geodésico.
+
+    Começamos com um icosaedro inscrito na esfera (12 vértices, 30 arestas e 20
+    faces). Em cada subdivisão, cada triângulo é dividido em 4, ligando os pontos
+    médios dos seus lados, e os vértices novos são "empurrados" para fora até a
+    superfície esférica. Cada subdivisão multiplica o número de faces por 4.
+
+    Esta função não desenha nada. As contas internas usam coordenadas e vetores,
+    assunto do módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        raio: o raio da esfera (todos os vértices ficam a essa distância do centro).
+        subdivisoes: quantas vezes os triângulos são divididos (0 é o icosaedro).
+        centro: o centro da esfera.
+
+    Retorna:
+        Uma tupla (vertices, faces), no formato explicado no início deste arquivo.
+        As faces são triângulos em sentido anti-horário vistos de fora.
+
+    Levanta:
+        ValueError: se `subdivisoes` for negativo.
+
+    Exemplo:
+        >>> vertices, faces = poliedro_aproximando_esfera(1, 2)
+        >>> len(vertices), len(faces)
+        (162, 320)
+    """
+    if subdivisoes < 0:
+        raise ValueError("O número de subdivisões não pode ser negativo.")
+
+    # O icosaedro de Platão, com cada vértice levado até a distância 1 do centro.
+    vertices_iniciais, faces = poliedro_de_platao("icosaedro")
+    pontos = [_normalizar(p) for p in vertices_iniciais]
+
+    for _ in range(subdivisoes):
+        # Cada aresta ganha um ponto médio só uma vez, mesmo estando em duas faces:
+        # o dicionário guarda o número do ponto médio de cada aresta já dividida.
+        pontos_medios: dict[tuple[int, int], int] = {}
+        for i, j in _arestas_do_poliedro(faces):
+            # O ponto médio fica um pouco "dentro" da esfera; normalizando, ele é
+            # empurrado para a superfície.
+            pontos.append(_normalizar((pontos[i] + pontos[j]) / 2))
+            pontos_medios[(i, j)] = len(pontos) - 1
+
+        novas_faces = []
+        for a, b, c in faces:
+            ab = pontos_medios[(min(a, b), max(a, b))]
+            bc = pontos_medios[(min(b, c), max(b, c))]
+            ca = pontos_medios[(min(c, a), max(c, a))]
+            # Três triângulos nos cantos e um no meio, todos com a mesma orientação
+            # do triângulo original (anti-horário visto de fora).
+            novas_faces += [[a, ab, ca], [ab, b, bc], [ca, bc, c], [ab, bc, ca]]
+        faces = novas_faces
+
+    c = _como_vetor(centro)
+    return [_como_ponto(c + raio * p) for p in pontos], faces
+
+
 # --- Planificações ---
 def _montar_planificacao(
     lados: int, aresta: float, pecas: Sequence[tuple[int, int]], angulo: float
@@ -4911,6 +5163,7 @@ def desenhar_poliedro(
     mostrar_arestas: bool = True,
     mostrar_vertices: bool = False,
     rotulos: Sequence[str] | None = None,
+    traco_unico: bool = False,
 ) -> go.Figure:
     """Desenha um poliedro dado no formato (vertices, faces).
 
@@ -4931,6 +5184,10 @@ def desenhar_poliedro(
         mostrar_arestas: se True, desenha as arestas.
         mostrar_vertices: se True, marca os vértices com pontos.
         rotulos: nomes dos vértices, na mesma ordem (opcional).
+        traco_unico: se True, todas as faces vão num único traço do Plotly, com um
+            pouco de sombreado. É bem mais rápido para poliedros com centenas ou
+            milhares de faces (como os que aproximam a esfera). Por padrão, cada
+            face é um traço separado.
 
     Retorna:
         A mesma figura, com o poliedro desenhado.
@@ -4952,15 +5209,25 @@ def desenhar_poliedro(
         6: CORES["destaque"],
     }
 
+    triangulos: list[tuple[int, int, int]] = []
+    cores_dos_triangulos: list[str] = []
     for face in faces:
         if colorir_por_lados:
             cor_da_face = cor_por_lados.get(len(face), CORES["solido"])
         else:
             cor_da_face = cor or CORES["solido"]
-        fig = desenhar_poligono(
-            fig, pontos[list(face)], cor=cor_da_face, opacidade=opacidade,
-            mostrar_borda=False,
-        )
+        if traco_unico:
+            # Guardamos os triângulos da face (em leque) para desenhar tudo de uma vez.
+            for m in range(1, len(face) - 1):
+                triangulos.append((face[0], face[m], face[m + 1]))
+                cores_dos_triangulos.append(cor_da_face)
+        else:
+            fig = desenhar_poligono(
+                fig, pontos[list(face)], cor=cor_da_face, opacidade=opacidade,
+                mostrar_borda=False,
+            )
+    if traco_unico:
+        fig = _desenhar_malha(fig, pontos, triangulos, cores_dos_triangulos, opacidade)
 
     if mostrar_arestas:
         # Cada aresta é desenhada uma vez só, mesmo estando em duas faces.
@@ -5670,6 +5937,202 @@ def desenhar_enrolamento_do_cone(
             poligono_regular(60, raio=raio_da_base),
             cor=cor_base,
             opacidade=opacidade,
+        )
+    return fig
+
+
+def desenhar_meridiano(
+    fig: go.Figure,
+    longitude: float,
+    raio: float = 1,
+    centro: Vetor3D = (0, 0, 0),
+    cor: str | None = None,
+    espessura: float = 3,
+    tracejado: bool = False,
+) -> go.Figure:
+    """Desenha um meridiano da esfera: a semicircunferência que vai do polo sul ao
+    polo norte, na longitude dada.
+
+    Parâmetros:
+        fig: a figura.
+        longitude: a longitude do meridiano, em graus.
+        raio: o raio da esfera.
+        centro: o centro da esfera.
+        cor: cor da linha. Se não for informada, usa CORES["apoio"].
+        espessura: espessura da linha.
+        tracejado: se True, desenha a linha tracejada.
+
+    Retorna:
+        A mesma figura, com o meridiano desenhado.
+
+    Exemplo:
+        >>> fig = desenhar_meridiano(fig, 30, raio=2)
+    """
+    # Andamos de polo a polo mantendo a longitude fixa e variando a latitude.
+    pontos = [
+        ponto_na_esfera(latitude, longitude, raio, centro)
+        for latitude in np.linspace(-90, 90, 61)
+    ]
+    return desenhar_curva_no_espaco(
+        fig, pontos, cor=cor or CORES["apoio"], espessura=espessura,
+        tracejado=tracejado,
+    )
+
+
+def desenhar_paralelo(
+    fig: go.Figure,
+    latitude: float,
+    raio: float = 1,
+    centro: Vetor3D = (0, 0, 0),
+    cor: str | None = None,
+    espessura: float = 3,
+    tracejado: bool = False,
+) -> go.Figure:
+    """Desenha um paralelo da esfera: a circunferência formada pelos pontos da
+    superfície com a latitude dada.
+
+    Parâmetros:
+        fig: a figura.
+        latitude: a latitude do paralelo, em graus (de −90 a 90). Com 0, é o
+            equador.
+        raio: o raio da esfera.
+        centro: o centro da esfera.
+        cor: cor da linha. Se não for informada, usa CORES["apoio"].
+        espessura: espessura da linha.
+        tracejado: se True, desenha a linha tracejada.
+
+    Retorna:
+        A mesma figura, com o paralelo desenhado.
+
+    Exemplo:
+        >>> fig = desenhar_paralelo(fig, 0, raio=2)  # o equador
+    """
+    # Damos a volta completa mantendo a latitude fixa e variando a longitude.
+    pontos = [
+        ponto_na_esfera(latitude, longitude, raio, centro)
+        for longitude in np.linspace(0, 360, 81)
+    ]
+    return desenhar_curva_no_espaco(
+        fig, pontos, cor=cor or CORES["apoio"], espessura=espessura,
+        tracejado=tracejado,
+    )
+
+
+def desenhar_fuso(
+    fig: go.Figure,
+    longitude_inicial: float,
+    longitude_final: float,
+    raio: float = 1,
+    centro: Vetor3D = (0, 0, 0),
+    cor: str | None = None,
+    opacidade: float = 0.7,
+    resolucao: int = 40,
+) -> go.Figure:
+    """Desenha um fuso esférico: a parte da superfície esférica entre dois
+    meridianos, de polo a polo (como a casca de um gomo de laranja).
+
+    Parâmetros:
+        fig: a figura.
+        longitude_inicial: a longitude do primeiro meridiano, em graus.
+        longitude_final: a longitude do segundo meridiano, em graus. O ângulo do
+            fuso é longitude_final − longitude_inicial.
+        raio: o raio da esfera.
+        centro: o centro da esfera.
+        cor: cor do fuso. Se não for informada, usa CORES["destaque"].
+        opacidade: de 0 (invisível) a 1 (totalmente opaco).
+        resolucao: quantidade de divisões do desenho (mais divisões, superfície
+            mais lisa).
+
+    Retorna:
+        A mesma figura, com o fuso desenhado (um único traço do Plotly).
+
+    Levanta:
+        ValueError: se o ângulo do fuso não estiver entre 0° (exclusive) e 360°.
+
+    Exemplo:
+        >>> fig = desenhar_fuso(fig, 0, 30, raio=2)
+    """
+    _conferir_angulo_do_fuso(longitude_inicial, longitude_final)
+    cor = cor or CORES["destaque"]
+
+    # Uma "grade" de pontos da esfera: cada linha tem uma latitude e cada coluna,
+    # uma longitude entre os dois meridianos. O Plotly preenche o que fica entre eles.
+    angulo = longitude_final - longitude_inicial
+    colunas = max(2, round(resolucao * angulo / 360) + 1)
+    longitudes = np.linspace(longitude_inicial, longitude_final, colunas)
+    latitudes = np.linspace(-90, 90, resolucao // 2 + 1)
+    grade = np.array([
+        [ponto_na_esfera(lat, lon, raio, centro) for lon in longitudes]
+        for lat in latitudes
+    ])
+    fig.add_trace(
+        go.Surface(
+            x=grade[:, :, 0], y=grade[:, :, 1], z=grade[:, :, 2],
+            # Uma escala de cores com uma cor só: o fuso fica todo da mesma cor.
+            colorscale=[[0, cor], [1, cor]],
+            showscale=False,
+            opacity=opacidade,
+            lighting=dict(ambient=0.8, diffuse=0.3, specular=0.05, fresnel=0),
+            hoverinfo="skip",
+        )
+    )
+    return fig
+
+
+def desenhar_cunha(
+    fig: go.Figure,
+    longitude_inicial: float,
+    longitude_final: float,
+    raio: float = 1,
+    centro: Vetor3D = (0, 0, 0),
+    cor: str | None = None,
+    cor_faces: str | None = None,
+    opacidade: float = 0.7,
+    resolucao: int = 40,
+) -> go.Figure:
+    """Desenha uma cunha esférica: a parte da esfera (o sólido) entre dois
+    semiplanos que contêm o eixo (como um gomo de laranja inteiro).
+
+    A cunha é limitada pelo fuso (a parte curva) e por duas faces planas, que são
+    semicírculos nos planos dos dois meridianos.
+
+    Parâmetros:
+        fig: a figura.
+        longitude_inicial: a longitude do primeiro semiplano, em graus.
+        longitude_final: a longitude do segundo semiplano, em graus. O ângulo da
+            cunha é longitude_final − longitude_inicial.
+        raio: o raio da esfera.
+        centro: o centro da esfera.
+        cor: cor da parte curva. Se não for informada, usa CORES["destaque"].
+        cor_faces: cor das duas faces planas. Se não for informada, usa
+            CORES["plano"].
+        opacidade: de 0 (invisível) a 1 (totalmente opaco).
+        resolucao: quantidade de divisões do desenho.
+
+    Retorna:
+        A mesma figura, com a cunha desenhada.
+
+    Levanta:
+        ValueError: se o ângulo da cunha não estiver entre 0° (exclusive) e 360°.
+
+    Exemplo:
+        >>> fig = desenhar_cunha(fig, 0, 60, raio=2)
+    """
+    _conferir_angulo_do_fuso(longitude_inicial, longitude_final)
+    fig = desenhar_fuso(
+        fig, longitude_inicial, longitude_final, raio, centro, cor=cor,
+        opacidade=opacidade, resolucao=resolucao,
+    )
+    # Cada face plana é um semicírculo: o meridiano (de polo a polo) fechado pelo
+    # diâmetro que fica no eixo. Um semicírculo é convexo, então pode ser desenhado
+    # como polígono.
+    for longitude in (longitude_inicial, longitude_final):
+        semicirculo = [
+            ponto_na_esfera(latitude, longitude, raio, centro)
+            for latitude in np.linspace(-90, 90, resolucao + 1)
+        ]
+        fig = desenhar_poligono(
+            fig, semicirculo, cor=cor_faces or CORES["plano"], opacidade=opacidade
         )
     return fig
 
