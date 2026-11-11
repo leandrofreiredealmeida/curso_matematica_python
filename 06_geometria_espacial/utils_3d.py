@@ -71,6 +71,9 @@ v13 — notebook 13: ponto na esfera por latitude e longitude, seção plana da 
      desenhar_esfera passa a aceitar faixas de latitude; coroa circular (anel);
      desenhar_poliedro ganha o parâmetro opcional `traco_unico` (poliedros com
      milhares de faces)
+v14 — notebook 14: semelhança (escalar poliedro), troncos de pirâmide (geral e
+     regular), tronco de prisma, tronco de cone, tronco de cilindro (com a opção
+     `virado`, para encaixar dois troncos num cilindro), setor de coroa circular
 
 Semiplanos e diedros
 --------------------
@@ -491,6 +494,57 @@ def _conferir_angulo_do_fuso(longitude_inicial: float, longitude_final: float) -
     360°."""
     if not 0 < longitude_final - longitude_inicial <= 360:
         raise ValueError("O ângulo do fuso deve estar entre 0° e 360°.")
+
+
+def _faces_do_tronco(n: int, lado: float) -> list[list[int]]:
+    """Monta as faces de um sólido com base de baixo 0..n−1 e base de cima n..2n−1
+    (o vértice n + k "acima" do vértice k), como um prisma ou um tronco.
+
+    `lado` é o produto escalar entre o normal da base de baixo (pela ordem dada) e
+    a subida até a base de cima. O sinal dele diz qual das bases precisa ser
+    percorrida ao contrário para que todas as faces "olhem" para fora (como em
+    `prisma`).
+    """
+    baixo = list(range(n))
+    cima = list(range(n, 2 * n))
+    laterais = [[k, (k + 1) % n, n + (k + 1) % n, n + k] for k in range(n)]
+    if lado > 0:
+        # A base de cima está do lado para onde o normal da base aponta: a base de
+        # baixo precisa ser percorrida ao contrário para "olhar" para fora.
+        baixo.reverse()
+    else:
+        # A subida foi para o outro lado: invertemos a base de cima e as laterais.
+        cima.reverse()
+        laterais = [list(reversed(face)) for face in laterais]
+    return [baixo, cima] + laterais
+
+
+def _desenhar_faixa(
+    fig: go.Figure,
+    curva_de_baixo: Sequence[Vetor3D],
+    curva_de_cima: Sequence[Vetor3D],
+    cor: str,
+    opacidade: float,
+) -> go.Figure:
+    """Desenha, num único go.Surface, a superfície que liga duas curvas com o mesmo
+    número de pontos (o ponto k de baixo ao ponto k de cima), como a superfície
+    lateral de um tronco de cone ou de cilindro."""
+    baixo = np.array([_como_vetor(p) for p in curva_de_baixo])
+    cima = np.array([_como_vetor(p) for p in curva_de_cima])
+    fig.add_trace(
+        go.Surface(
+            x=np.array([baixo[:, 0], cima[:, 0]]),
+            y=np.array([baixo[:, 1], cima[:, 1]]),
+            z=np.array([baixo[:, 2], cima[:, 2]]),
+            # Uma escala de cores com uma cor só: a superfície fica toda da mesma cor.
+            colorscale=[[0, cor], [1, cor]],
+            showscale=False,
+            opacity=opacidade,
+            lighting=dict(ambient=0.8, diffuse=0.3, specular=0.05, fresnel=0),
+            hoverinfo="skip",
+        )
+    )
+    return fig
 
 
 # ==================================================================================
@@ -4255,6 +4309,231 @@ def afastar_pecas(
     return afastadas
 
 
+def escalar_poliedro(
+    vertices: Sequence[Vetor3D],
+    faces: Sequence[Sequence[int]],
+    fator: float,
+    centro: Vetor3D = (0, 0, 0),
+) -> tuple[list[tuple[float, float, float]], list[list[int]]]:
+    """Devolve uma ampliação (ou redução) de um poliedro: um sólido semelhante a ele.
+
+    É uma HOMOTETIA de razão `fator` e centro `centro`: cada vértice P vai para
+    centro + fator · (P − centro). Ou seja, o ponto novo fica na mesma semirreta
+    que sai do centro e passa por P, a uma distância `fator` vezes maior. Todos os
+    comprimentos ficam multiplicados por `fator`, as áreas por fator² e o volume
+    por fator³. As faces (os números dos vértices) não mudam.
+
+    Esta função não desenha nada. As contas internas usam coordenadas e vetores,
+    assunto do módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        vertices: os vértices do poliedro, cada um como (x, y, z).
+        faces: as faces, cada uma como lista de números de vértices.
+        fator: a razão de semelhança k (maior que 1 amplia, menor que 1 reduz).
+        centro: o ponto que fica parado na ampliação.
+
+    Retorna:
+        Uma tupla (vertices, faces) com o poliedro semelhante.
+
+    Levanta:
+        ValueError: se o fator não for positivo.
+
+    Exemplo:
+        >>> cubo = paralelepipedo_retangulo(2, 2, 2)
+        >>> medir_volume(*escalar_poliedro(*cubo, 2))  # 8 · 2³
+        64.0
+    """
+    if fator <= 0:
+        raise ValueError("O fator de semelhança deve ser positivo.")
+    c = _como_vetor(centro)
+    novos_vertices = [_como_ponto(c + fator * (_como_vetor(p) - c)) for p in vertices]
+    return novos_vertices, [list(face) for face in faces]
+
+
+def tronco_de_piramide(
+    base: Sequence[Vetor3D], vertice: Vetor3D, fracao: float
+) -> tuple[list[tuple[float, float, float]], list[list[int]]]:
+    """Devolve os vértices e as faces de um tronco de pirâmide de bases paralelas.
+
+    O tronco é o que sobra da pirâmide de base `base` e vértice `vertice` quando ela
+    é cortada por um plano paralelo à base, a uma fração `fracao` da altura MEDIDA
+    A PARTIR DA BASE, e a pirâmide pequena de cima é retirada. Cada ponto P da base
+    vai para P + fracao · (vertice − P), o ponto da aresta lateral que fica a essa
+    fração do caminho até o vértice (Teorema de Tales no espaço, notebook 02).
+
+    Esta função não desenha nada. As contas internas usam coordenadas e vetores,
+    assunto do módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        base: os vértices da base (pelo menos 3, todos num mesmo plano), na ordem
+            do contorno.
+        vertice: o vértice da pirâmide inteira, fora do plano da base.
+        fracao: a que fração da altura (a partir da base) fica o corte, entre 0
+            e 1.
+
+    Retorna:
+        Uma tupla (vertices, faces). Os vértices 0 a n − 1 são os da base maior, e
+        os vértices n a 2n − 1 são os da base menor, na mesma ordem (o vértice n + k
+        fica na aresta lateral que sai do vértice k). As faces são as duas bases e
+        as n faces laterais (trapézios), todas orientadas para fora.
+
+    Levanta:
+        ValueError: se a fração não estiver entre 0 e 1, se a base tiver menos de
+            3 vértices ou se o vértice estiver no plano da base.
+
+    Exemplo:
+        >>> quadrado = poligono_regular(4, lado=6)
+        >>> tronco = tronco_de_piramide(quadrado, (0, 0, 8), 0.5)
+        >>> round(medir_volume(*tronco), 6)
+        84.0
+    """
+    if not 0 < fracao < 1:
+        raise ValueError("A fração do corte deve estar entre 0 e 1.")
+    if len(base) < 3:
+        raise ValueError("A base de uma pirâmide precisa de pelo menos 3 vértices.")
+    pontos = [_como_vetor(p) for p in base]
+    v = _como_vetor(vertice)
+
+    # Mesma conferência de `piramide`: o vértice não pode estar no plano da base.
+    subida = v - pontos[0]
+    lado = np.dot(_normal_da_face(pontos), subida)
+    if abs(lado) <= TOLERANCIA * max(np.linalg.norm(subida), 1.0):
+        raise ValueError("O vértice está no plano da base: a pirâmide ficaria achatada.")
+
+    # A base menor: cada vértice da base "anda" a fração pedida rumo ao vértice.
+    menor = [p + fracao * (v - p) for p in pontos]
+    vertices = [_como_ponto(p) for p in pontos] + [_como_ponto(p) for p in menor]
+    return vertices, _faces_do_tronco(len(pontos), lado)
+
+
+def tronco_de_piramide_regular(
+    n: int,
+    lado_maior: float,
+    lado_menor: float,
+    altura: float,
+    centro: Vetor3D = (0, 0, 0),
+) -> tuple[list[tuple[float, float, float]], list[list[int]]]:
+    """Devolve os vértices e as faces de um tronco de pirâmide regular.
+
+    A base maior é um polígono regular de n lados com lado `lado_maior`, deitado no
+    plano horizontal, e a base menor é um polígono regular de n lados com lado
+    `lado_menor`, `altura` acima dela. As duas bases ficam centradas na mesma
+    vertical e com os vértices alinhados, de modo que as faces laterais são
+    trapézios isósceles congruentes.
+
+    Esta função não desenha nada. As contas internas usam coordenadas, assunto do
+    módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        n: o número de lados das bases (pelo menos 3).
+        lado_maior: o lado da base maior.
+        lado_menor: o lado da base menor.
+        altura: a altura do tronco (a distância entre os planos das bases).
+        centro: o centro da base maior.
+
+    Retorna:
+        Uma tupla (vertices, faces), como em `tronco_de_piramide`: os vértices 0 a
+        n − 1 são os da base maior, e os vértices n a 2n − 1, os da base menor.
+
+    Levanta:
+        ValueError: se o lado menor não for positivo e menor que o lado maior, se a
+            altura não for positiva ou se n < 3.
+
+    Exemplo:
+        >>> tronco = tronco_de_piramide_regular(4, 6, 3, 4)
+        >>> round(medir_volume(*tronco), 6)
+        84.0
+    """
+    if not 0 < lado_menor < lado_maior:
+        raise ValueError("O lado menor deve ser positivo e menor que o lado maior.")
+    if altura <= 0:
+        raise ValueError("A altura do tronco deve ser positiva.")
+    c = _como_vetor(centro)
+    # A pirâmide inteira tem altura H tal que lado_menor / lado_maior = (H − h) / H
+    # (semelhança). O corte fica a uma fração h / H da altura, a partir da base.
+    altura_da_piramide = altura * lado_maior / (lado_maior - lado_menor)
+    base = poligono_regular(n, lado=lado_maior, centro=c)
+    return tronco_de_piramide(
+        base, c + (0, 0, altura_da_piramide), altura / altura_da_piramide
+    )
+
+
+def tronco_de_prisma(
+    base: Sequence[Vetor3D],
+    comprimentos: Sequence[float],
+    direcao: Vetor3D = (0, 0, 1),
+) -> tuple[list[tuple[float, float, float]], list[list[int]]]:
+    """Devolve os vértices e as faces de um tronco de prisma.
+
+    A base é o polígono `base`. De cada vértice da base sai uma aresta lateral na
+    `direcao` dada (todas paralelas entre si), com o comprimento correspondente da
+    lista `comprimentos`. A "tampa" é o polígono que liga as pontas dessas arestas;
+    ela precisa ser plana. Com base triangular, a tampa é sempre plana (três pontos
+    sempre estão num mesmo plano); com 4 lados ou mais, depende dos comprimentos.
+
+    Esta função não desenha nada. As contas internas usam coordenadas e vetores,
+    assunto do módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        base: os vértices da base (pelo menos 3, todos num mesmo plano), na ordem
+            do contorno.
+        comprimentos: o comprimento de cada aresta lateral, na mesma ordem dos
+            vértices da base.
+        direcao: a direção (comum) das arestas laterais. Só a direção importa: o
+            vetor é reduzido a comprimento 1.
+
+    Retorna:
+        Uma tupla (vertices, faces). Os vértices 0 a n − 1 são os da base, e os
+        vértices n a 2n − 1 são os da tampa (o vértice n + k é a ponta da aresta
+        que sai do vértice k). As faces são orientadas para fora.
+
+    Levanta:
+        ValueError: se a base tiver menos de 3 vértices, se não houver um
+            comprimento positivo para cada vértice, se a direção for paralela ao
+            plano da base ou se a tampa não for plana.
+
+    Exemplo:
+        >>> triangulo = [(0, 0, 0), (4, 0, 0), (0, 3, 0)]
+        >>> round(medir_volume(*tronco_de_prisma(triangulo, [2, 3, 7])), 6)
+        24.0
+    """
+    if len(base) < 3:
+        raise ValueError("A base de um prisma precisa de pelo menos 3 vértices.")
+    if len(comprimentos) != len(base):
+        raise ValueError(
+            "A lista de comprimentos precisa ter um valor para cada vértice da base."
+        )
+    if any(c <= 0 for c in comprimentos):
+        raise ValueError("Os comprimentos das arestas laterais devem ser positivos.")
+    pontos = [_como_vetor(p) for p in base]
+    u = _normalizar(direcao)
+
+    # Como em `prisma`: o sinal do produto escalar diz para que lado da base as
+    # arestas sobem; se ele for (quase) zero, elas correm "deitadas" na base.
+    lado = np.dot(_normal_da_face(pontos), u)
+    if abs(lado) <= TOLERANCIA:
+        raise ValueError(
+            "A direção das arestas não pode ser paralela ao plano da base: o sólido "
+            "ficaria achatado."
+        )
+
+    tampa = [p + c * u for p, c in zip(pontos, comprimentos, strict=True)]
+
+    # A tampa é plana quando todos os seus pontos estão no plano dos três primeiros
+    # (a distância de cada ponto a esse plano é praticamente zero).
+    normal_da_tampa = _normal_da_face(tampa)
+    escala = max(float(np.max(np.linalg.norm(np.array(tampa) - tampa[0], axis=1))), 1.0)
+    for p in tampa[3:]:
+        if abs(np.dot(p - tampa[0], normal_da_tampa)) > 1e-9 * escala:
+            raise ValueError(
+                "As extremidades das arestas laterais não estão num mesmo plano: isso "
+                "não é um tronco de prisma."
+            )
+
+    vertices = [_como_ponto(p) for p in pontos] + [_como_ponto(p) for p in tampa]
+    return vertices, _faces_do_tronco(len(pontos), lado)
+
+
 # --- Construtores de corpos redondos (devolvem dados, não desenham) ---
 def secao_meridiana_do_cilindro(
     centro_da_base: Vetor3D,
@@ -5937,6 +6216,327 @@ def desenhar_enrolamento_do_cone(
             poligono_regular(60, raio=raio_da_base),
             cor=cor_base,
             opacidade=opacidade,
+        )
+    return fig
+
+
+def desenhar_tronco_de_cone(
+    fig: go.Figure,
+    centro_da_base: Vetor3D,
+    raio_maior: float,
+    raio_menor: float,
+    altura: float,
+    cor: str | None = None,
+    opacidade: float = 0.5,
+    mostrar_bases: bool = True,
+    mostrar_eixo: bool = False,
+    mostrar_geratrizes: int = 0,
+    mostrar_cone_completo: bool = False,
+    resolucao: int = 60,
+) -> go.Figure:
+    """Desenha um tronco de cone reto, de bases paralelas.
+
+    A base maior é o círculo horizontal de centro `centro_da_base` e raio
+    `raio_maior`; a base menor, de raio `raio_menor`, fica `altura` acima, com o
+    centro na mesma vertical.
+
+    Parâmetros:
+        fig: a figura.
+        centro_da_base: o centro O da base maior.
+        raio_maior: o raio R da base maior.
+        raio_menor: o raio r da base menor.
+        altura: a altura h do tronco.
+        cor: cor do tronco. Se não for informada, usa CORES["solido"].
+        opacidade: de 0 (invisível) a 1 (totalmente opaco).
+        mostrar_bases: se True, desenha as duas bases como discos.
+        mostrar_eixo: se True, desenha o eixo OO' tracejado, com os centros marcados.
+        mostrar_geratrizes: quantas geratrizes destacar (0 para nenhuma).
+        mostrar_cone_completo: se True, desenha também, bem transparente e na cor
+            CORES["apoio"], o cone pequeno que foi "retirado" de cima do tronco
+            (da base menor até o vértice do cone inteiro).
+        resolucao: quantidade de lados do polígono que imita a circunferência.
+
+    Retorna:
+        A mesma figura, com o tronco de cone desenhado.
+
+    Levanta:
+        ValueError: se o raio menor não for positivo e menor que o raio maior, ou
+            se a altura não for positiva.
+
+    Exemplo:
+        >>> fig = desenhar_tronco_de_cone(fig, (0, 0, 0), 3, 1, 4, mostrar_eixo=True)
+    """
+    if not 0 < raio_menor < raio_maior:
+        raise ValueError(
+            "No tronco de cone, o raio menor deve ser positivo e menor que o raio maior."
+        )
+    if altura <= 0:
+        raise ValueError("A altura do tronco de cone deve ser positiva.")
+    centro = _como_vetor(centro_da_base)
+    topo = centro + (0, 0, altura)
+    cor = cor or CORES["solido"]
+
+    # As duas circunferências, imitadas por polígonos de muitos lados com os mesmos
+    # ângulos: o ponto k de baixo e o ponto k de cima estão na mesma geratriz.
+    # Repetimos o primeiro ponto no fim para a superfície fechar.
+    de_baixo = poligono_regular(resolucao, raio=raio_maior, centro=centro)
+    de_cima = poligono_regular(resolucao, raio=raio_menor, centro=topo)
+    fig = _desenhar_faixa(
+        fig, de_baixo + de_baixo[:1], de_cima + de_cima[:1], cor, opacidade
+    )
+
+    if mostrar_bases:
+        fig = desenhar_poligono(
+            fig, de_baixo, cor=cor, opacidade=opacidade, mostrar_borda=False
+        )
+        fig = desenhar_poligono(
+            fig, de_cima, cor=cor, opacidade=opacidade, mostrar_borda=False
+        )
+
+    # As beiradas das duas bases, num único traço: elas dão o contorno do sólido.
+    beiradas = [(de_baixo[k], de_baixo[(k + 1) % resolucao]) for k in range(resolucao)]
+    beiradas += [(de_cima[k], de_cima[(k + 1) % resolucao]) for k in range(resolucao)]
+    fig = _desenhar_linhas(fig, beiradas, cor, 3)
+
+    if mostrar_geratrizes > 0:
+        posicoes = np.linspace(0, resolucao, mostrar_geratrizes, endpoint=False)
+        geratrizes = [(de_baixo[round(k)], de_cima[round(k)]) for k in posicoes]
+        fig = _desenhar_linhas(fig, geratrizes, CORES["apoio"], 3)
+
+    if mostrar_cone_completo:
+        # Por semelhança, o cone inteiro tem altura H = h · R / (R − r): o vértice
+        # fica H acima do centro da base maior.
+        altura_do_cone = altura * raio_maior / (raio_maior - raio_menor)
+        vertice = centro + (0, 0, altura_do_cone)
+        fig = desenhar_cone(
+            fig, vertice, topo, raio_menor, cor=CORES["apoio"], opacidade=0.15,
+            mostrar_base=False, resolucao=resolucao,
+        )
+
+    if mostrar_eixo:
+        fig.add_trace(
+            go.Scatter3d(
+                x=[centro[0], topo[0]], y=[centro[1], topo[1]], z=[centro[2], topo[2]],
+                mode="lines+markers+text",
+                text=["O", "O'"],
+                textposition="middle right",
+                textfont=dict(color=CORES["apoio"]),
+                line=dict(color=CORES["apoio"], width=4, dash="dash"),
+                marker=dict(color=CORES["apoio"], size=4),
+                hoverinfo="skip",
+            )
+        )
+    return fig
+
+
+def desenhar_setor_de_coroa(
+    fig: go.Figure,
+    raio_interno: float,
+    raio_externo: float,
+    angulo: float,
+    centro: Vetor3D = (0, 0, 0),
+    cor: str | None = None,
+    opacidade: float = 0.6,
+    mostrar_borda: bool = True,
+    resolucao: int = 60,
+) -> go.Figure:
+    """Desenha um setor de coroa circular no plano horizontal que passa por
+    `centro`: a planificação da superfície lateral de um tronco de cone.
+
+    É a região entre duas circunferências de mesmo centro (raios `raio_interno` e
+    `raio_externo`), limitada a um ângulo central `angulo`. É o setor circular do
+    cone grande menos o setor do cone pequeno. O setor fica simétrico em relação à
+    semirreta que sai do centro "para baixo" (no sentido −y), como um abajur
+    aberto sobre a mesa.
+
+    Como a figura não é convexa, ela não é desenhada com `desenhar_poligono`: a
+    faixa entre os dois arcos é dividida em trapézios finos, e cada trapézio em
+    dois triângulos (como em `desenhar_coroa_circular`).
+
+    Parâmetros:
+        fig: a figura.
+        raio_interno: o raio do arco de dentro (com 0, a figura vira um setor
+            circular).
+        raio_externo: o raio do arco de fora.
+        angulo: o ângulo central, em graus (maior que 0° e no máximo 360°).
+        centro: o centro comum dos dois arcos.
+        cor: cor do setor. Se não for informada, usa CORES["solido"].
+        opacidade: de 0 (invisível) a 1 (totalmente opaco).
+        mostrar_borda: se True, desenha o contorno (os dois arcos e os dois
+            segmentos das pontas).
+        resolucao: em quantas partes os arcos são divididos numa volta completa.
+
+    Retorna:
+        A mesma figura, com o setor de coroa desenhado.
+
+    Levanta:
+        ValueError: se o ângulo não estiver entre 0° (exclusive) e 360°, ou se os
+            raios não satisfizerem 0 ≤ raio_interno < raio_externo.
+
+    Exemplo:
+        >>> fig = desenhar_setor_de_coroa(fig, 2.236, 6.708, 161)
+    """
+    if not 0 < angulo <= 360:
+        raise ValueError("O ângulo do setor de coroa deve estar entre 0° e 360°.")
+    if not 0 <= raio_interno < raio_externo:
+        raise ValueError(
+            "Os raios do setor de coroa devem satisfazer 0 ≤ raio interno < raio "
+            "externo."
+        )
+    c = _como_vetor(centro)
+    cor = cor or CORES["solido"]
+
+    # Os ângulos vão de −90° − θ/2 a −90° + θ/2: o setor fica centrado no sentido −y.
+    passos = max(2, round(resolucao * angulo / 360))
+    angulos = np.radians(np.linspace(-90 - angulo / 2, -90 + angulo / 2, passos + 1))
+    direcoes = [np.array([np.cos(t), np.sin(t), 0.0]) for t in angulos]
+    fora = [c + raio_externo * d for d in direcoes]
+    dentro = [c + raio_interno * d for d in direcoes]
+
+    # Cada "fatia" entre os ângulos k e k + 1 é um trapézio, dividido em dois
+    # triângulos. Os pontos de fora são 0 a n − 1, e os de dentro, n a 2n − 1.
+    n = passos + 1
+    triangulos = []
+    for k in range(passos):
+        triangulos.append((k, k + 1, n + k + 1))
+        triangulos.append((k, n + k + 1, n + k))
+    pontos = np.array(fora + dentro)
+    fig.add_trace(
+        go.Mesh3d(
+            x=pontos[:, 0], y=pontos[:, 1], z=pontos[:, 2],
+            i=[t[0] for t in triangulos],
+            j=[t[1] for t in triangulos],
+            k=[t[2] for t in triangulos],
+            color=cor,
+            opacity=opacidade,
+            lighting=dict(ambient=1, diffuse=0, specular=0, fresnel=0),
+            hoverinfo="skip",
+        )
+    )
+
+    if mostrar_borda:
+        # Os dois arcos e, se o setor não der a volta completa, os dois segmentos
+        # das pontas (as "emendas" da planificação), num único traço.
+        bordas = [(fora[k], fora[k + 1]) for k in range(passos)]
+        if raio_interno > 0:
+            bordas += [(dentro[k], dentro[k + 1]) for k in range(passos)]
+        if angulo < 360:
+            bordas += [(dentro[0], fora[0]), (dentro[-1], fora[-1])]
+        fig = _desenhar_linhas(fig, bordas, CORES["apoio"], 3)
+    return fig
+
+
+def desenhar_tronco_de_cilindro(
+    fig: go.Figure,
+    raio: float,
+    geratriz_menor: float,
+    geratriz_maior: float,
+    centro_da_base: Vetor3D = (0, 0, 0),
+    cor: str | None = None,
+    opacidade: float = 0.5,
+    mostrar_bases: bool = True,
+    mostrar_eixo: bool = False,
+    resolucao: int = 60,
+    virado: bool = False,
+) -> go.Figure:
+    """Desenha um tronco de cilindro reto: um cilindro de eixo vertical cortado em
+    cima por um plano inclinado.
+
+    A base de baixo é o círculo horizontal de centro `centro_da_base` e raio
+    `raio`. A geratriz que fica no sentido +x mede `geratriz_maior`, e a oposta,
+    `geratriz_menor`. A geratriz no ângulo θ (medido a partir do sentido +x) mede
+        (g_M + g_m) / 2 + (g_M − g_m) / 2 · cos θ,
+    e as pontas de cima de todas elas formam a base de cima, uma elipse.
+
+    Parâmetros:
+        fig: a figura.
+        raio: o raio da base circular.
+        geratriz_menor: a menor geratriz, g_m.
+        geratriz_maior: a maior geratriz, g_M.
+        centro_da_base: o centro da base circular.
+        cor: cor do tronco. Se não for informada, usa CORES["solido"].
+        opacidade: de 0 (invisível) a 1 (totalmente opaco).
+        mostrar_bases: se True, desenha a base circular e a elipse.
+        mostrar_eixo: se True, desenha tracejado o eixo do tronco, do centro do
+            círculo ao centro da elipse (comprimento (g_M + g_m) / 2).
+        resolucao: quantidade de lados do polígono que imita a circunferência.
+        virado: se True, desenha o tronco "de cabeça para baixo" e girado 180° em
+            torno do eixo: a base circular fica em cima, à altura g_M + g_m acima
+            de `centro_da_base`, e a elipse fica embaixo, encaixando-se exatamente
+            na elipse de um tronco desenhado com virado=False. Serve para mostrar
+            que dois troncos iguais formam um cilindro de altura g_M + g_m.
+
+    Retorna:
+        A mesma figura, com o tronco de cilindro desenhado.
+
+    Levanta:
+        ValueError: se as geratrizes não forem positivas ou se a menor ultrapassar
+            a maior.
+
+    Exemplo:
+        >>> fig = desenhar_tronco_de_cilindro(fig, 2, 5, 9, mostrar_eixo=True)
+    """
+    if not 0 < geratriz_menor <= geratriz_maior:
+        raise ValueError(
+            "As geratrizes devem ser positivas, com a menor sem ultrapassar a maior."
+        )
+    centro = _como_vetor(centro_da_base)
+    cor = cor or CORES["solido"]
+    media = (geratriz_maior + geratriz_menor) / 2
+    meia_diferenca = (geratriz_maior - geratriz_menor) / 2
+
+    # Os pontos da circunferência de baixo e, acima de cada um, a ponta da sua
+    # geratriz. Primeiro montamos o tronco com o centro da base na origem.
+    angulos = np.linspace(0, 2 * np.pi, resolucao + 1)
+    circulo = np.array([[raio * np.cos(t), raio * np.sin(t), 0.0] for t in angulos])
+    alturas = media + meia_diferenca * np.cos(angulos)
+    elipse = circulo + np.column_stack([np.zeros_like(alturas)] * 2 + [alturas])
+    pe_do_eixo = np.zeros(3)
+    topo_do_eixo = np.array([0.0, 0.0, media])
+
+    if virado:
+        # Giro de 180° em torno de uma reta horizontal (x, y, z) → (−x, y, −z),
+        # seguido de uma subida de g_M + g_m. O corte inclinado vai exatamente para
+        # o lugar do corte do tronco "em pé": as duas peças se encaixam.
+        def virar(pontos: np.ndarray) -> np.ndarray:
+            return pontos * np.array([-1.0, 1.0, -1.0]) + (
+                0, 0, geratriz_maior + geratriz_menor
+            )
+
+        circulo, elipse = virar(circulo), virar(elipse)
+        pe_do_eixo, topo_do_eixo = virar(pe_do_eixo), virar(topo_do_eixo)
+
+    circulo, elipse = circulo + centro, elipse + centro
+    pe_do_eixo, topo_do_eixo = pe_do_eixo + centro, topo_do_eixo + centro
+
+    fig = _desenhar_faixa(fig, circulo, elipse, cor, opacidade)
+
+    if mostrar_bases:
+        # O último ponto repete o primeiro: deixamos ele de fora dos polígonos.
+        # A elipse é plana e convexa, então pode ser desenhada como polígono.
+        fig = desenhar_poligono(
+            fig, circulo[:-1], cor=cor, opacidade=opacidade, mostrar_borda=False
+        )
+        fig = desenhar_poligono(
+            fig, elipse[:-1], cor=cor, opacidade=opacidade, mostrar_borda=False
+        )
+
+    # As beiradas do círculo e da elipse, num único traço.
+    beiradas = [(circulo[k], circulo[k + 1]) for k in range(resolucao)]
+    beiradas += [(elipse[k], elipse[k + 1]) for k in range(resolucao)]
+    fig = _desenhar_linhas(fig, beiradas, cor, 3)
+
+    if mostrar_eixo:
+        fig.add_trace(
+            go.Scatter3d(
+                x=[pe_do_eixo[0], topo_do_eixo[0]],
+                y=[pe_do_eixo[1], topo_do_eixo[1]],
+                z=[pe_do_eixo[2], topo_do_eixo[2]],
+                mode="lines+markers",
+                line=dict(color=CORES["apoio"], width=4, dash="dash"),
+                marker=dict(color=CORES["apoio"], size=4),
+                hoverinfo="skip",
+            )
         )
     return fig
 
