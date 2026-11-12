@@ -74,6 +74,9 @@ v13 — notebook 13: ponto na esfera por latitude e longitude, seção plana da 
 v14 — notebook 14: semelhança (escalar poliedro), troncos de pirâmide (geral e
      regular), tronco de prisma, tronco de cone, tronco de cilindro (com a opção
      `virado`, para encaixar dois troncos num cilindro), setor de coroa circular
+v15 — notebook 15: distâncias do centro aos vértices, faces e arestas de um poliedro;
+     raios das esferas inscrita, tangente às arestas e circunscrita de um poliedro
+     regular
 
 Semiplanos e diedros
 --------------------
@@ -7457,3 +7460,115 @@ def medir_volume(
             produto_misto = np.linalg.det(vetores)
             volume += abs(produto_misto) / 6
     return float(round(volume, 12))
+
+
+def medir_distancias_ao_centro(
+    vertices: Sequence[Vetor3D],
+    faces: Sequence[Sequence[int]],
+    centro: Vetor3D | None = None,
+) -> dict[str, object]:
+    """Mede as distâncias de um centro aos vértices, às arestas e às faces.
+
+    Serve para conferir se existe uma esfera com esse centro que passa por todos os
+    vértices (distâncias aos vértices todas iguais), que tangencia todas as arestas
+    (distâncias às arestas todas iguais) ou que tangencia todas as faces
+    (distâncias às faces todas iguais).
+
+    A distância a uma aresta é medida até a RETA da aresta (o pé da perpendicular,
+    notebook 03), e a distância a uma face é medida até o PLANO da face (notebook
+    04).
+
+    Esta função usa vetores, assunto do módulo 07 (Geometria Analítica). Aqui ela
+    serve apenas para conferir a sua resposta.
+
+    Parâmetros:
+        vertices: os vértices, cada um como (x, y, z).
+        faces: as faces, cada uma como lista de números de vértices.
+        centro: o ponto de onde medimos. Se for None, usamos a média dos vértices.
+
+    Retorna:
+        Um dicionário com:
+        - "centro": o centro usado, como (x, y, z);
+        - "vertices": as distâncias a cada vértice, na ordem dos vértices;
+        - "arestas": as distâncias a cada aresta, na ordem dos pares (i, j) com
+          i < j, ordenados;
+        - "faces": as distâncias a cada face, na ordem das faces.
+
+    Exemplo:
+        >>> d = medir_distancias_ao_centro(*poliedro_de_platao("cubo", 2))
+        >>> round(max(d["vertices"]), 4), round(max(d["faces"]), 4)
+        (1.7321, 1.0)
+    """
+    pontos = [_como_vetor(v) for v in vertices]
+    if centro is None:
+        o = np.mean(pontos, axis=0)
+    else:
+        o = _como_vetor(centro)
+
+    # Vértices: a distância entre dois pontos.
+    distancias_vertices = [float(np.linalg.norm(p - o)) for p in pontos]
+
+    # Arestas: a distância do centro até o pé da perpendicular à reta da aresta.
+    distancias_arestas = []
+    for i, j in sorted(_arestas_do_poliedro(faces)):
+        pe = _como_vetor(pe_da_perpendicular_a_reta(o, pontos[i], pontos[j]))
+        distancias_arestas.append(float(np.linalg.norm(pe - o)))
+
+    # Faces: a distância do centro até o plano da face.
+    distancias_faces = []
+    for face in faces:
+        cantos = [pontos[k] for k in face]
+        plano = (cantos[0], _normal_da_face(cantos))
+        distancias_faces.append(float(medir_distancia_ponto_plano(o, plano)))
+
+    return {
+        "centro": _como_ponto(o),
+        "vertices": distancias_vertices,
+        "arestas": distancias_arestas,
+        "faces": distancias_faces,
+    }
+
+
+def raios_do_poliedro_regular(
+    vertices: Sequence[Vetor3D], faces: Sequence[Sequence[int]]
+) -> dict[str, float]:
+    """Mede os raios das três esferas de um poliedro regular.
+
+    Num poliedro regular, o centro (a média dos vértices) está à mesma distância
+    de todos os vértices, de todas as arestas e de todas as faces. Essas três
+    distâncias são os raios das esferas circunscrita (R), tangente às arestas (ρ)
+    e inscrita (r). As medidas vêm de `medir_distancias_ao_centro`.
+
+    Esta função usa vetores, assunto do módulo 07 (Geometria Analítica). Aqui ela
+    serve apenas para conferir a sua resposta.
+
+    Parâmetros:
+        vertices: os vértices, cada um como (x, y, z).
+        faces: as faces, cada uma como lista de números de vértices.
+
+    Retorna:
+        Um dicionário {"circunscrita": R, "arestas": ρ, "inscrita": r}.
+
+    Levanta:
+        ValueError: se as distâncias do centro aos vértices, às arestas ou às faces
+            não forem todas iguais (o poliedro não é regular).
+
+    Exemplo:
+        >>> raios = raios_do_poliedro_regular(*poliedro_de_platao("cubo", 2))
+        >>> {nome: round(valor, 4) for nome, valor in raios.items()}
+        {'circunscrita': 1.7321, 'arestas': 1.4142, 'inscrita': 1.0}
+    """
+    distancias = medir_distancias_ao_centro(vertices, faces)
+    raios = {}
+    for nome, chave in [
+        ("circunscrita", "vertices"), ("arestas", "arestas"), ("inscrita", "faces")
+    ]:
+        valores = distancias[chave]
+        # "Todas iguais" na prática: a diferença entre a maior e a menor é minúscula.
+        if max(valores) - min(valores) > 1e-6:
+            raise ValueError(
+                "Este poliedro não é regular: as distâncias do centro aos vértices, "
+                "às arestas ou às faces não são todas iguais."
+            )
+        raios[nome] = float(np.mean(valores))
+    return raios
