@@ -77,6 +77,8 @@ v14 — notebook 14: semelhança (escalar poliedro), troncos de pirâmide (geral
 v15 — notebook 15: distâncias do centro aos vértices, faces e arestas de um poliedro;
      raios das esferas inscrita, tangente às arestas e circunscrita de um poliedro
      regular
+v16 — notebook 16: gráficos 2D com proporção igual, polígono e circunferência 2D,
+     circunferências inscrita e circunscrita a um triângulo
 
 Semiplanos e diedros
 --------------------
@@ -550,6 +552,31 @@ def _desenhar_faixa(
     return fig
 
 
+def _lados_do_triangulo(
+    a: Sequence[float], b: Sequence[float], c: Sequence[float]
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, float, float, float]:
+    """Converte os vértices em arrays e mede os lados (opostos a A, B e C).
+
+    Levanta ValueError se os três pontos forem colineares.
+    """
+    pa, pb, pc = (np.asarray(p, dtype=float) for p in (a, b, c))
+    if not (pa.shape == pb.shape == pc.shape and pa.shape in [(2,), (3,)]):
+        raise ValueError(
+            "Os três vértices precisam ter 2 coordenadas (x, y) ou 3 (x, y, z)."
+        )
+    lado_a = float(np.linalg.norm(pb - pc))   # lado oposto ao vértice A
+    lado_b = float(np.linalg.norm(pa - pc))   # lado oposto ao vértice B
+    lado_c = float(np.linalg.norm(pa - pb))   # lado oposto ao vértice C
+    # Pontos colineares: a área do "triângulo" é zero. A área sai do produto
+    # vetorial (módulo 07); em 2D, completamos os pontos com z = 0.
+    u = np.append(pb - pa, 0) if pa.shape == (2,) else pb - pa
+    v = np.append(pc - pa, 0) if pa.shape == (2,) else pc - pa
+    area = float(np.linalg.norm(np.cross(u, v))) / 2
+    if area < TOLERANCIA * max(1.0, lado_a * lado_b):
+        raise ValueError("Os três pontos são colineares: eles não formam um triângulo.")
+    return pa, pb, pc, lado_a, lado_b, lado_c
+
+
 # ==================================================================================
 # Figura e exibição
 # ==================================================================================
@@ -634,12 +661,15 @@ def mostrar(fig: go.Figure) -> None:
     fig.show(config={"displaylogo": False})
 
 
-# --- Gráficos 2D (com o mesmo tema visual das figuras 3D) ---
+# --- Gráfico 2D vazio (com o mesmo tema visual das figuras 3D) ---
+# As funções que desenham nos gráficos 2D ficam na seção "Elementos básicos",
+# sob o subtítulo "Gráficos 2D".
 def criar_grafico(
     titulo: str | None = None,
     rotulo_x: str | None = None,
     rotulo_y: str | None = None,
     altura: int = 400,
+    proporcao_igual: bool = False,
 ) -> go.Figure:
     """Cria um gráfico 2D vazio, com o visual padrão do módulo.
 
@@ -648,12 +678,18 @@ def criar_grafico(
         rotulo_x: nome do eixo horizontal (opcional).
         rotulo_y: nome do eixo vertical (opcional).
         altura: altura do gráfico, em pixels.
+        proporcao_igual: se True, uma unidade no eixo vertical tem o mesmo tamanho
+            que uma unidade no eixo horizontal. Use para desenhar figuras
+            geométricas (como seções meridianas): assim uma circunferência aparece
+            redonda, e não achatada. Com o padrão, False, cada eixo se ajusta
+            sozinho ao espaço disponível (bom para gráficos de funções).
 
     Retorna:
         Uma figura do Plotly (`go.Figure`), pronta para receber curvas e pontos.
 
     Exemplo:
         >>> fig = criar_grafico(rotulo_x="raio (cm)", rotulo_y="área total (cm²)")
+        >>> secao = criar_grafico(titulo="Seção meridiana", proporcao_igual=True)
     """
     # A grade usa a cor de apoio bem transparente: ela ajuda a ler os valores sem
     # chamar mais atenção do que a curva.
@@ -670,88 +706,9 @@ def criar_grafico(
         xaxis=dict(title=rotulo_x, gridcolor=grade, zerolinecolor=grade),
         yaxis=dict(title=rotulo_y, gridcolor=grade, zerolinecolor=grade),
     )
-    return fig
-
-
-def desenhar_curva(
-    fig: go.Figure,
-    xs: Sequence[float],
-    ys: Sequence[float],
-    rotulo: str | None = None,
-    cor: str | None = None,
-    espessura: float = 3,
-    tracejado: bool = False,
-) -> go.Figure:
-    """Desenha uma curva num gráfico 2D, ligando os pontos (xs[0], ys[0]), (xs[1],
-    ys[1]) e assim por diante.
-
-    Parâmetros:
-        fig: o gráfico (criado com `criar_grafico`).
-        xs: os valores no eixo horizontal.
-        ys: os valores no eixo vertical, na mesma ordem.
-        rotulo: nome da curva na legenda (opcional).
-        cor: cor da linha. Se não for informada, usa CORES["reta"].
-        espessura: espessura da linha.
-        tracejado: se True, desenha a linha tracejada.
-
-    Retorna:
-        O mesmo gráfico, com a curva desenhada.
-
-    Exemplo:
-        >>> fig = desenhar_curva(fig, [0, 1, 2], [0, 1, 4], rotulo="y = x²")
-    """
-    fig.add_trace(
-        go.Scatter(
-            x=list(xs), y=list(ys),
-            mode="lines",
-            name=rotulo,
-            showlegend=rotulo is not None,
-            line=dict(
-                color=cor or CORES["reta"],
-                width=espessura,
-                dash="dash" if tracejado else "solid",
-            ),
-        )
-    )
-    return fig
-
-
-def marcar_ponto_no_grafico(
-    fig: go.Figure,
-    x: float,
-    y: float,
-    rotulo: str | None = None,
-    cor: str | None = None,
-    tamanho: float = 10,
-) -> go.Figure:
-    """Marca um ponto num gráfico 2D, com um texto opcional ao lado.
-
-    Parâmetros:
-        fig: o gráfico (criado com `criar_grafico`).
-        x: a posição no eixo horizontal.
-        y: a posição no eixo vertical.
-        rotulo: texto escrito ao lado do ponto (opcional).
-        cor: cor do ponto. Se não for informada, usa CORES["destaque"].
-        tamanho: tamanho do ponto.
-
-    Retorna:
-        O mesmo gráfico, com o ponto marcado.
-
-    Exemplo:
-        >>> fig = marcar_ponto_no_grafico(fig, 2, 4, rotulo="P")
-    """
-    cor = cor or CORES["destaque"]
-    fig.add_trace(
-        go.Scatter(
-            x=[x], y=[y],
-            mode="markers+text" if rotulo else "markers",
-            text=[rotulo] if rotulo else None,
-            textposition="top right",
-            textfont=dict(color=cor),
-            marker=dict(color=cor, size=tamanho),
-            showlegend=False,
-        )
-    )
+    if proporcao_igual:
+        # O eixo y fica "preso" ao eixo x, com a mesma escala (razão 1).
+        fig.update_layout(yaxis=dict(scaleanchor="x", scaleratio=1))
     return fig
 
 
@@ -3321,6 +3278,202 @@ def adicionar_rotulo(
             textfont=dict(color=cor or CORES["texto"], size=tamanho),
             hoverinfo="skip",
         )
+    )
+    return fig
+
+
+# --- Gráficos 2D ---
+# Estas funções desenham num gráfico 2D criado com `criar_grafico`. Os pontos são
+# pares (x, y). Para figuras geométricas, crie o gráfico com proporcao_igual=True.
+def desenhar_curva(
+    fig: go.Figure,
+    xs: Sequence[float],
+    ys: Sequence[float],
+    rotulo: str | None = None,
+    cor: str | None = None,
+    espessura: float = 3,
+    tracejado: bool = False,
+) -> go.Figure:
+    """Desenha uma curva num gráfico 2D, ligando os pontos (xs[0], ys[0]), (xs[1],
+    ys[1]) e assim por diante.
+
+    Parâmetros:
+        fig: o gráfico (criado com `criar_grafico`).
+        xs: os valores no eixo horizontal.
+        ys: os valores no eixo vertical, na mesma ordem.
+        rotulo: nome da curva na legenda (opcional).
+        cor: cor da linha. Se não for informada, usa CORES["reta"].
+        espessura: espessura da linha.
+        tracejado: se True, desenha a linha tracejada.
+
+    Retorna:
+        O mesmo gráfico, com a curva desenhada.
+
+    Exemplo:
+        >>> fig = desenhar_curva(fig, [0, 1, 2], [0, 1, 4], rotulo="y = x²")
+    """
+    fig.add_trace(
+        go.Scatter(
+            x=list(xs), y=list(ys),
+            mode="lines",
+            name=rotulo,
+            showlegend=rotulo is not None,
+            line=dict(
+                color=cor or CORES["reta"],
+                width=espessura,
+                dash="dash" if tracejado else "solid",
+            ),
+        )
+    )
+    return fig
+
+
+def marcar_ponto_no_grafico(
+    fig: go.Figure,
+    x: float,
+    y: float,
+    rotulo: str | None = None,
+    cor: str | None = None,
+    tamanho: float = 10,
+) -> go.Figure:
+    """Marca um ponto num gráfico 2D, com um texto opcional ao lado.
+
+    Parâmetros:
+        fig: o gráfico (criado com `criar_grafico`).
+        x: a posição no eixo horizontal.
+        y: a posição no eixo vertical.
+        rotulo: texto escrito ao lado do ponto (opcional).
+        cor: cor do ponto. Se não for informada, usa CORES["destaque"].
+        tamanho: tamanho do ponto.
+
+    Retorna:
+        O mesmo gráfico, com o ponto marcado.
+
+    Exemplo:
+        >>> fig = marcar_ponto_no_grafico(fig, 2, 4, rotulo="P")
+    """
+    cor = cor or CORES["destaque"]
+    fig.add_trace(
+        go.Scatter(
+            x=[x], y=[y],
+            mode="markers+text" if rotulo else "markers",
+            text=[rotulo] if rotulo else None,
+            textposition="top right",
+            textfont=dict(color=cor),
+            marker=dict(color=cor, size=tamanho),
+            showlegend=False,
+        )
+    )
+    return fig
+
+
+def desenhar_poligono_2d(
+    fig: go.Figure,
+    pontos: Sequence[Sequence[float]],
+    rotulo: str | None = None,
+    cor: str | None = None,
+    preencher: bool = True,
+    opacidade: float = 0.3,
+    espessura: float = 2,
+) -> go.Figure:
+    """Desenha um polígono fechado num gráfico 2D, com preenchimento opcional.
+
+    Serve, por exemplo, para desenhar a seção meridiana de um sólido redondo: o
+    retângulo do cilindro, o triângulo do cone ou o trapézio do tronco de cone.
+
+    Parâmetros:
+        fig: o gráfico (criado com `criar_grafico`).
+        pontos: os vértices do polígono, cada um como (x, y), na ordem do contorno.
+            Não é preciso repetir o primeiro ponto no fim: o polígono é fechado
+            automaticamente.
+        rotulo: nome do polígono na legenda (opcional).
+        cor: cor do contorno e do preenchimento. Se não for informada, usa
+            CORES["solido"].
+        preencher: se True, pinta o interior do polígono.
+        opacidade: opacidade do preenchimento, de 0 a 1 (o contorno fica opaco).
+        espessura: espessura do contorno.
+
+    Retorna:
+        O mesmo gráfico, com o polígono desenhado (um traço do Plotly).
+
+    Levanta:
+        ValueError: se forem dados menos de 3 pontos.
+
+    Exemplo:
+        >>> fig = criar_grafico(proporcao_igual=True)
+        >>> fig = desenhar_poligono_2d(fig, [(-3, 0), (3, 0), (0, 4)], rotulo="cone")
+    """
+    if len(pontos) < 3:
+        raise ValueError("Um polígono precisa de pelo menos 3 pontos.")
+    cor = cor or CORES["solido"]
+    # Repetimos o primeiro ponto no fim da lista para a linha "voltar" ao início.
+    xs = [float(p[0]) for p in pontos] + [float(pontos[0][0])]
+    ys = [float(p[1]) for p in pontos] + [float(pontos[0][1])]
+    fig.add_trace(
+        go.Scatter(
+            x=xs, y=ys,
+            mode="lines",
+            name=rotulo,
+            showlegend=rotulo is not None,
+            # "toself" pinta a região cercada pela própria linha.
+            fill="toself" if preencher else None,
+            fillcolor=_cor_transparente(cor, opacidade) if preencher else None,
+            line=dict(color=cor, width=espessura),
+            hoverinfo="skip",
+        )
+    )
+    return fig
+
+
+def desenhar_circunferencia_2d(
+    fig: go.Figure,
+    centro: Sequence[float],
+    raio: float,
+    rotulo: str | None = None,
+    cor: str | None = None,
+    preencher: bool = False,
+    opacidade: float = 0.3,
+    espessura: float = 2,
+    resolucao: int = 100,
+) -> go.Figure:
+    """Desenha uma circunferência num gráfico 2D, com preenchimento opcional.
+
+    Com preencher=True, o desenho vira um círculo pintado. Serve, por exemplo, para
+    desenhar o círculo máximo de uma esfera na seção meridiana.
+
+    Parâmetros:
+        fig: o gráfico (criado com `criar_grafico`, de preferência com
+            proporcao_igual=True, para a circunferência aparecer redonda).
+        centro: o centro, como (x, y).
+        raio: o raio (positivo).
+        rotulo: nome da circunferência na legenda (opcional).
+        cor: cor da linha e do preenchimento. Se não for informada, usa
+            CORES["reta"].
+        preencher: se True, pinta o círculo.
+        opacidade: opacidade do preenchimento, de 0 a 1 (a linha fica opaca).
+        espessura: espessura da linha.
+        resolucao: quantidade de lados do polígono que imita a circunferência.
+
+    Retorna:
+        O mesmo gráfico, com a circunferência desenhada (um traço do Plotly).
+
+    Levanta:
+        ValueError: se o raio não for positivo.
+
+    Exemplo:
+        >>> fig = criar_grafico(proporcao_igual=True)
+        >>> fig = desenhar_circunferencia_2d(fig, (0, 1.5), 1.5, preencher=True)
+    """
+    if raio <= 0:
+        raise ValueError("O raio da circunferência precisa ser positivo.")
+    # Como no ciclo trigonométrico: o ponto do ângulo t é (cx + R cos t, cy + R sen t).
+    # O último ângulo é 2π, igual ao primeiro: a linha se fecha.
+    t = np.linspace(0, 2 * np.pi, resolucao + 1)
+    xs = centro[0] + raio * np.cos(t)
+    ys = centro[1] + raio * np.sin(t)
+    fig = desenhar_poligono_2d(
+        fig, list(zip(xs[:-1], ys[:-1])), rotulo=rotulo, cor=cor or CORES["reta"],
+        preencher=preencher, opacidade=opacidade, espessura=espessura,
     )
     return fig
 
@@ -7572,3 +7725,84 @@ def raios_do_poliedro_regular(
             )
         raios[nome] = float(np.mean(valores))
     return raios
+
+
+def medir_circunferencia_inscrita(
+    a: Sequence[float], b: Sequence[float], c: Sequence[float]
+) -> tuple[tuple[float, ...], float]:
+    """Mede o centro (incentro) e o raio da circunferência inscrita num triângulo.
+
+    O raio é r = área / semiperímetro (módulo 04). O incentro é a "média" dos
+    vértices com pesos iguais aos lados opostos: (a·A + b·B + c·C) / (a + b + c).
+
+    Esta função usa coordenadas, assunto do módulo 07 (Geometria Analítica). Aqui
+    ela serve apenas para conferir a sua resposta.
+
+    Parâmetros:
+        a: o vértice A, como (x, y) ou (x, y, z).
+        b: o vértice B, na mesma dimensão de A.
+        c: o vértice C, na mesma dimensão de A.
+
+    Retorna:
+        Uma tupla (centro, raio). O centro tem a mesma quantidade de coordenadas
+        dos vértices (2 ou 3).
+
+    Levanta:
+        ValueError: se os três pontos forem colineares.
+
+    Exemplo:
+        >>> centro, raio = medir_circunferencia_inscrita((-3, 0), (3, 0), (0, 4))
+        >>> [round(x, 4) for x in centro], round(raio, 4)
+        ([0.0, 1.5], 1.5)
+    """
+    pa, pb, pc, lado_a, lado_b, lado_c = _lados_do_triangulo(a, b, c)
+    perimetro = lado_a + lado_b + lado_c
+    centro = (lado_a * pa + lado_b * pb + lado_c * pc) / perimetro
+    # Área pela fórmula de Herão (módulo 04), com p = semiperímetro.
+    p = perimetro / 2
+    area = np.sqrt(max(p * (p - lado_a) * (p - lado_b) * (p - lado_c), 0.0))
+    raio = float(area / p)
+    return tuple(float(x) for x in centro), raio
+
+
+def medir_circunferencia_circunscrita(
+    a: Sequence[float], b: Sequence[float], c: Sequence[float]
+) -> tuple[tuple[float, ...], float]:
+    """Mede o centro (circuncentro) e o raio da circunferência circunscrita a um
+    triângulo.
+
+    O circuncentro é o ponto do plano do triângulo à mesma distância dos três
+    vértices: o encontro das mediatrizes dos lados (módulo 04).
+
+    Esta função usa coordenadas e vetores, assunto do módulo 07 (Geometria
+    Analítica). Aqui ela serve apenas para conferir a sua resposta.
+
+    Parâmetros:
+        a: o vértice A, como (x, y) ou (x, y, z).
+        b: o vértice B, na mesma dimensão de A.
+        c: o vértice C, na mesma dimensão de A.
+
+    Retorna:
+        Uma tupla (centro, raio). O centro tem a mesma quantidade de coordenadas
+        dos vértices (2 ou 3).
+
+    Levanta:
+        ValueError: se os três pontos forem colineares.
+
+    Exemplo:
+        >>> centro, raio = medir_circunferencia_circunscrita((-3, 0), (3, 0), (0, 4))
+        >>> [round(x, 4) for x in centro], round(raio, 4)
+        ([0.0, 0.875], 3.125)
+    """
+    pa, pb, pc, _, _, _ = _lados_do_triangulo(a, b, c)
+    # Procuramos o centro na forma O = A + s·u + t·v, com u = B − A e v = C − A (assim
+    # ele fica no plano do triângulo). As condições |O − A| = |O − B| e
+    # |O − A| = |O − C| viram um sistema linear 2 × 2 em s e t.
+    u = pb - pa
+    v = pc - pa
+    sistema = np.array([[u @ u, u @ v], [u @ v, v @ v]])
+    lado_direito = np.array([u @ u, v @ v]) / 2
+    s, t = np.linalg.solve(sistema, lado_direito)
+    centro = pa + s * u + t * v
+    raio = float(np.linalg.norm(centro - pa))
+    return tuple(float(x) for x in centro), raio
