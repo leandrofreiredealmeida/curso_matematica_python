@@ -79,6 +79,8 @@ v15 — notebook 15: distâncias do centro aos vértices, faces e arestas de um 
      regular
 v16 — notebook 16: gráficos 2D com proporção igual, polígono e circunferência 2D,
      circunferências inscrita e circunscrita a um triângulo
+v17 — notebook 17: superfície de revolução e sólido de revolução (giro parcial ou
+     completo, eixo z), área/comprimento e centroide de figuras planas
 
 Semiplanos e diedros
 --------------------
@@ -575,6 +577,29 @@ def _lados_do_triangulo(
     if area < TOLERANCIA * max(1.0, lado_a * lado_b):
         raise ValueError("Os três pontos são colineares: eles não formam um triângulo.")
     return pa, pb, pc, lado_a, lado_b, lado_c
+
+
+def _conferir_perfil_de_revolucao(
+    pontos: Sequence[Sequence[float]], angulo: float
+) -> np.ndarray:
+    """Confere o perfil (ou a região) e o ângulo de giro e devolve os pontos (r, z)
+    como um array do NumPy."""
+    perfil = np.array([(float(p[0]), float(p[1])) for p in pontos])
+    if np.any(perfil[:, 0] < -TOLERANCIA):
+        raise ValueError(
+            "O perfil não pode cruzar o eixo: todas as distâncias ao eixo devem ser "
+            "maiores ou iguais a zero."
+        )
+    if not 0 < angulo <= 360:
+        raise ValueError("O ângulo de giro deve estar entre 0° e 360°.")
+    return perfil
+
+
+def _girar_ponto_do_perfil(r: float, z: float, angulo: float) -> np.ndarray:
+    """Posição no espaço do ponto (r, z) do plano meridiano depois de girar `angulo`
+    graus em torno do eixo z."""
+    t = np.radians(angulo)
+    return np.array([r * np.cos(t), r * np.sin(t), z])
 
 
 # ==================================================================================
@@ -6893,6 +6918,205 @@ def desenhar_cunha(
     return fig
 
 
+# --- Figuras de revolução ---
+# Uma figura de revolução nasce de uma figura plana que gira em torno de um eixo. A
+# figura plana é descrita no PLANO MERIDIANO, com pares (r, z):
+#   r = a distância até o eixo (nunca negativa);
+#   z = a altura, medida ao longo do eixo.
+# Nos desenhos 3D, o eixo de rotação é sempre o eixo z. Um ponto (r, z) que girou um
+# ângulo t fica na posição (r·cos t, r·sen t, z): é o ciclo trigonométrico de raio r,
+# na altura z.
+def desenhar_superficie_de_revolucao(
+    fig: go.Figure,
+    perfil: Sequence[Sequence[float]],
+    angulo: float = 360,
+    cor: str | None = None,
+    opacidade: float = 0.5,
+    mostrar_perfil: bool = True,
+    mostrar_paralelos: int = 0,
+    resolucao: int = 60,
+) -> go.Figure:
+    """Desenha a superfície gerada por uma curva plana (a geratriz) que gira em
+    torno do eixo z.
+
+    A curva é dada no plano meridiano, como uma lista de pontos (r, z): r é a
+    distância até o eixo e z é a altura. Ela gira de 0° até `angulo`; com 360°, a
+    superfície fica completa.
+
+    Parâmetros:
+        fig: a figura.
+        perfil: os pontos (r, z) da geratriz, na ordem da curva, com r >= 0. Para
+            uma curva fechada (como uma circunferência), repita o primeiro ponto
+            no fim.
+        angulo: o ângulo de giro, em graus (maior que 0 e no máximo 360).
+        cor: cor da superfície. Se não for informada, usa CORES["solido"].
+        opacidade: de 0 (invisível) a 1 (totalmente opaca).
+        mostrar_perfil: se True, desenha a geratriz na posição final (em
+            CORES["destaque"]) e o eixo de rotação tracejado.
+        mostrar_paralelos: quantos paralelos destacar (as circunferências descritas
+            por pontos da geratriz), igualmente espaçados ao longo dela.
+        resolucao: quantidade de divisões de uma volta completa (mais divisões,
+            superfície mais lisa).
+
+    Retorna:
+        A mesma figura, com a superfície desenhada (um único traço do Plotly para a
+        superfície).
+
+    Levanta:
+        ValueError: se algum ponto tiver r < 0 ou se o ângulo não estiver entre 0°
+            (exclusive) e 360°.
+
+    Exemplo:
+        >>> arco = [(2 * np.sin(t), -2 * np.cos(t)) for t in np.linspace(0, np.pi, 40)]
+        >>> fig = desenhar_superficie_de_revolucao(fig, arco, angulo=270)  # esfera
+    """
+    pontos = _conferir_perfil_de_revolucao(perfil, angulo)
+    if len(pontos) < 2:
+        return fig
+    cor = cor or CORES["solido"]
+    r, z = pontos[:, 0], pontos[:, 1]
+
+    # Uma "grade": cada linha é um ponto da geratriz e cada coluna, uma posição do
+    # giro. Na coluna do ângulo t, o ponto (r, z) fica em (r·cos t, r·sen t, z).
+    colunas = max(2, round(resolucao * angulo / 360) + 1)
+    giros = np.radians(np.linspace(0, angulo, colunas))
+    fig.add_trace(
+        go.Surface(
+            x=np.outer(r, np.cos(giros)),
+            y=np.outer(r, np.sin(giros)),
+            z=np.outer(z, np.ones(colunas)),
+            # Uma escala de cores com uma cor só: a superfície fica toda da mesma cor.
+            colorscale=[[0, cor], [1, cor]],
+            showscale=False,
+            opacity=opacidade,
+            lighting=dict(ambient=0.8, diffuse=0.3, specular=0.05, fresnel=0),
+            hoverinfo="skip",
+        )
+    )
+
+    if mostrar_paralelos > 0:
+        # Medimos o comprimento acumulado ao longo da geratriz e escolhemos pontos
+        # igualmente espaçados nesse comprimento (assim funciona até com um segmento
+        # de só dois pontos). Numa curva aberta, ficamos longe das pontas; numa
+        # curva fechada, a última posição não pode repetir a primeira.
+        trechos = np.linalg.norm(np.diff(pontos, axis=0), axis=1)
+        acumulado = np.concatenate([[0.0], np.cumsum(trechos)])
+        fechada = np.linalg.norm(pontos[0] - pontos[-1]) < TOLERANCIA
+        if fechada:
+            fracoes = np.arange(mostrar_paralelos) / mostrar_paralelos
+        else:
+            fracoes = (np.arange(mostrar_paralelos) + 0.5) / mostrar_paralelos
+        segmentos = []
+        for fracao in fracoes:
+            s = fracao * acumulado[-1]
+            r_paralelo = np.interp(s, acumulado, r)
+            z_paralelo = np.interp(s, acumulado, z)
+            if r_paralelo < TOLERANCIA:
+                continue  # um ponto sobre o eixo não descreve circunferência
+            arco = [
+                _girar_ponto_do_perfil(r_paralelo, z_paralelo, a)
+                for a in np.linspace(0, angulo, colunas)
+            ]
+            segmentos += [(arco[k], arco[k + 1]) for k in range(len(arco) - 1)]
+        if segmentos:
+            fig = _desenhar_linhas(fig, segmentos, CORES["apoio"], 3)
+
+    if mostrar_perfil:
+        # O eixo de rotação, um pouco mais comprido que a altura do perfil.
+        folga = 0.15 * max(z.max() - z.min(), 1)
+        fig = desenhar_segmento(
+            fig, (0, 0, z.min() - folga), (0, 0, z.max() + folga),
+            cor=CORES["apoio"], espessura=3, tracejado=True,
+        )
+        # A geratriz na posição final do giro.
+        final = [_girar_ponto_do_perfil(rr, zz, angulo) for rr, zz in pontos]
+        fig = desenhar_curva_no_espaco(
+            fig, final, cor=CORES["destaque"], espessura=6
+        )
+    return fig
+
+
+def desenhar_solido_de_revolucao(
+    fig: go.Figure,
+    regiao: Sequence[Sequence[float]],
+    angulo: float = 360,
+    cor: str | None = None,
+    cor_faces: str | None = None,
+    opacidade: float = 0.5,
+    mostrar_regiao: bool = True,
+    resolucao: int = 60,
+) -> go.Figure:
+    """Desenha o sólido gerado por uma região plana que gira em torno do eixo z.
+
+    A região é um polígono CONVEXO do plano meridiano, dado pelos vértices (r, z) na
+    ordem do contorno. Para uma região curva, como o círculo que gera um toro, use
+    um polígono com muitos lados (por exemplo, 60 ou 80).
+
+    O sólido é desenhado pela superfície que o contorno da região gera ao girar.
+    Num giro parcial (menos de 360°), o sólido fica "cortado" e aparecem as duas
+    faces de corte: a região na posição inicial e na posição final.
+
+    Parâmetros:
+        fig: a figura.
+        regiao: os vértices (r, z) da região, na ordem do contorno, com r >= 0. Não
+            é preciso repetir o primeiro vértice no fim.
+        angulo: o ângulo de giro, em graus (maior que 0 e no máximo 360).
+        cor: cor da superfície do sólido. Se não for informada, usa
+            CORES["solido"].
+        cor_faces: cor das duas faces de corte (só aparecem com angulo < 360). Se
+            não for informada, usa CORES["plano"].
+        opacidade: de 0 (invisível) a 1 (totalmente opaco).
+        mostrar_regiao: se True, destaca o contorno da região na posição final (em
+            CORES["destaque"]) e desenha o eixo de rotação tracejado.
+        resolucao: quantidade de divisões de uma volta completa.
+
+    Retorna:
+        A mesma figura, com o sólido desenhado.
+
+    Levanta:
+        ValueError: se a região tiver menos de 3 vértices, se algum vértice tiver
+            r < 0 ou se o ângulo não estiver entre 0° (exclusive) e 360°.
+
+    Exemplo:
+        >>> retangulo = [(0, 0), (2, 0), (2, 3), (0, 3)]
+        >>> fig = desenhar_solido_de_revolucao(fig, retangulo, angulo=270)  # cilindro
+    """
+    pontos = _conferir_perfil_de_revolucao(regiao, angulo)
+    if len(pontos) < 3:
+        raise ValueError("Uma região precisa de pelo menos 3 vértices.")
+    # O contorno fechado: repetimos o primeiro vértice no fim (se ainda não estiver).
+    if np.linalg.norm(pontos[0] - pontos[-1]) > TOLERANCIA:
+        contorno = np.vstack([pontos, pontos[:1]])
+    else:
+        contorno = pontos
+        pontos = pontos[:-1]
+
+    # A "casca" do sólido: a superfície gerada pelo contorno da região.
+    fig = desenhar_superficie_de_revolucao(
+        fig, contorno, angulo=angulo, cor=cor, opacidade=opacidade,
+        mostrar_perfil=False, resolucao=resolucao,
+    )
+
+    # Num giro parcial, o sólido tem duas faces planas: a região no começo e no fim.
+    if angulo < 360:
+        for posicao in (0, angulo):
+            face = [_girar_ponto_do_perfil(rr, zz, posicao) for rr, zz in pontos]
+            fig = desenhar_poligono(
+                fig, face, cor=cor_faces or CORES["plano"], opacidade=opacidade
+            )
+
+    if mostrar_regiao:
+        z = contorno[:, 1]
+        folga = 0.15 * max(z.max() - z.min(), 1)
+        fig = desenhar_segmento(
+            fig, (0, 0, z.min() - folga), (0, 0, z.max() + folga),
+            cor=CORES["apoio"], espessura=3, tracejado=True,
+        )
+        final = [_girar_ponto_do_perfil(rr, zz, angulo) for rr, zz in contorno]
+        fig = desenhar_curva_no_espaco(fig, final, cor=CORES["destaque"], espessura=6)
+    return fig
+
+
 # ==================================================================================
 # Funções de conferência
 # ==================================================================================
@@ -7806,3 +8030,89 @@ def medir_circunferencia_circunscrita(
     centro = pa + s * u + t * v
     raio = float(np.linalg.norm(centro - pa))
     return tuple(float(x) for x in centro), raio
+
+
+def medir_area_e_centroide_2d(
+    pontos: Sequence[Sequence[float]],
+) -> tuple[float, tuple[float, float]]:
+    """Mede a área e o centroide (centro de gravidade) de um polígono plano 2D,
+    convexo ou não.
+
+    Esta função usa coordenadas, assunto do módulo 07 (Geometria Analítica). Aqui
+    ela serve apenas para conferir a sua resposta: os centroides que você deve usar
+    são os da Geometria Plana (centro do retângulo e do círculo, baricentro do
+    triângulo).
+
+    Parâmetros:
+        pontos: os vértices do polígono, cada um como (x, y), na ordem do contorno.
+            Não é preciso repetir o primeiro vértice no fim.
+
+    Retorna:
+        Uma tupla (area, centroide), com o centroide como (x, y).
+
+    Levanta:
+        ValueError: se houver menos de 3 vértices ou se a área for zero (pontos
+            todos alinhados).
+
+    Exemplo:
+        >>> area, centroide = medir_area_e_centroide_2d([(0, 0), (3, 0), (0, 4)])
+        >>> round(area, 4), [round(c, 4) for c in centroide]
+        (6.0, [1.0, 1.3333])
+    """
+    if len(pontos) < 3:
+        raise ValueError("Um polígono precisa de pelo menos 3 vértices.")
+    xy = np.array([(float(p[0]), float(p[1])) for p in pontos])
+    x, y = xy[:, 0], xy[:, 1]
+    # Cada vértice com o seguinte (o último volta ao primeiro).
+    x_seguinte, y_seguinte = np.roll(x, -1), np.roll(y, -1)
+    # A "fórmula do cadarço": cada lado, junto com a origem, forma um triângulo cuja
+    # área (com sinal) é cruzado / 2. Somando, sobra a área do polígono.
+    cruzado = x * y_seguinte - x_seguinte * y
+    area_com_sinal = cruzado.sum() / 2
+    if abs(area_com_sinal) < TOLERANCIA:
+        raise ValueError("Os pontos estão alinhados: o polígono não tem área.")
+    # O centroide é a média dos centroides desses triângulos, pesada pelas áreas.
+    cx = ((x + x_seguinte) * cruzado).sum() / (6 * area_com_sinal)
+    cy = ((y + y_seguinte) * cruzado).sum() / (6 * area_com_sinal)
+    return float(abs(area_com_sinal)), (float(cx), float(cy))
+
+
+def medir_comprimento_e_centroide_da_curva_2d(
+    pontos: Sequence[Sequence[float]],
+) -> tuple[float, tuple[float, float]]:
+    """Mede o comprimento e o centroide de uma linha poligonal 2D aberta.
+
+    O centroide da linha é a média dos pontos médios dos seus segmentos, pesada
+    pelos comprimentos: um segmento mais comprido "pesa" mais.
+
+    Esta função usa coordenadas, assunto do módulo 07 (Geometria Analítica). Aqui
+    ela serve apenas para conferir a sua resposta.
+
+    Parâmetros:
+        pontos: os pontos da linha, cada um como (x, y), na ordem em que ela é
+            percorrida.
+
+    Retorna:
+        Uma tupla (comprimento, centroide), com o centroide como (x, y).
+
+    Levanta:
+        ValueError: se houver menos de 2 pontos ou se o comprimento for zero.
+
+    Exemplo:
+        >>> comprimento, centroide = medir_comprimento_e_centroide_da_curva_2d(
+        ...     [(0, 0), (3, 4)]
+        ... )
+        >>> comprimento, centroide
+        (5.0, (1.5, 2.0))
+    """
+    if len(pontos) < 2:
+        raise ValueError("Uma linha precisa de pelo menos 2 pontos.")
+    xy = np.array([(float(p[0]), float(p[1])) for p in pontos])
+    # Comprimento de cada segmento (Pitágoras) e o seu ponto médio.
+    comprimentos = np.linalg.norm(np.diff(xy, axis=0), axis=1)
+    medios = (xy[:-1] + xy[1:]) / 2
+    comprimento = comprimentos.sum()
+    if comprimento < TOLERANCIA:
+        raise ValueError("A linha não tem comprimento: todos os pontos coincidem.")
+    centroide = (medios * comprimentos[:, None]).sum(axis=0) / comprimento
+    return float(comprimento), (float(centroide[0]), float(centroide[1]))
