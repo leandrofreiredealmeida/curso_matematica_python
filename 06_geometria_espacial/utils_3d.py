@@ -81,6 +81,8 @@ v16 — notebook 16: gráficos 2D com proporção igual, polígono e circunferê
      circunferências inscrita e circunscrita a um triângulo
 v17 — notebook 17: superfície de revolução e sólido de revolução (giro parcial ou
      completo, eixo z), área/comprimento e centroide de figuras planas
+v18 — notebook 18: regiões meridianas do segmento esférico, do setor esférico e do
+     anel esférico
 
 Semiplanos e diedros
 --------------------
@@ -600,6 +602,40 @@ def _girar_ponto_do_perfil(r: float, z: float, angulo: float) -> np.ndarray:
     graus em torno do eixo z."""
     t = np.radians(angulo)
     return np.array([r * np.cos(t), r * np.sin(t), z])
+
+
+def _conferir_alturas_na_esfera(
+    raio: float, z_inferior: float, z_superior: float
+) -> None:
+    """Confere se as alturas dos dois planos de corte cabem na esfera, na ordem
+    certa: −R ≤ z_inferior < z_superior ≤ R."""
+    if raio <= 0:
+        raise ValueError("O raio da esfera deve ser positivo.")
+    # Uma pequena folga para os arredondamentos (por exemplo, z = R calculado).
+    folga = TOLERANCIA * max(raio, 1.0)
+    if not (
+        -raio - folga <= z_inferior < z_superior - folga
+        and z_superior <= raio + folga
+    ):
+        raise ValueError("As alturas devem satisfazer −R ≤ z_inferior < z_superior ≤ R.")
+
+
+def _arco_da_esfera(
+    raio: float, z_inferior: float, z_superior: float, resolucao: int
+) -> list[tuple[float, float]]:
+    """Pontos (r, z) do arco da circunferência r = √(R² − z²), do lado r >= 0, de
+    z_inferior até z_superior."""
+    # Andamos pelo ÂNGULO (a latitude), e não pela altura: assim os pontos ficam
+    # igualmente espaçados ao longo do arco, inclusive perto dos polos, onde a
+    # circunferência fica quase horizontal.
+    seno_inicial = np.clip(z_inferior / raio, -1, 1)
+    seno_final = np.clip(z_superior / raio, -1, 1)
+    latitudes = np.linspace(
+        np.arcsin(seno_inicial), np.arcsin(seno_final), max(resolucao, 2)
+    )
+    return [
+        (float(raio * np.cos(t)), float(raio * np.sin(t))) for t in latitudes
+    ]
 
 
 # ==================================================================================
@@ -5122,6 +5158,124 @@ def poliedro_aproximando_esfera(
 
     c = _como_vetor(centro)
     return [_como_ponto(c + raio * p) for p in pontos], faces
+
+
+# Regiões meridianas das partes da esfera. A esfera tem centro na origem, raio R e
+# eixo vertical; as partes ficam entre os planos horizontais z = z_inferior e
+# z = z_superior. Cada função devolve a região do PLANO MERIDIANO (pontos (r, z),
+# com r = distância ao eixo) que, girando em torno do eixo, gera o sólido. As três
+# regiões são convexas: servem para desenhar_solido_de_revolucao,
+# desenhar_poligono_2d e medir_area_e_centroide_2d.
+def regiao_meridiana_do_segmento(
+    raio: float, z_inferior: float, z_superior: float, resolucao: int = 200
+) -> list[tuple[float, float]]:
+    """Devolve a região do plano meridiano que, girando, gera o segmento esférico.
+
+    A região é limitada pelo eixo, pelos dois planos de corte e pelo arco da
+    circunferência de raio R: começa no eixo, em (0, z_inferior), sobe pelo arco
+    até z_superior e volta ao eixo em (0, z_superior). Se um dos planos for
+    tangente à esfera (z_superior = R ou z_inferior = −R), o segmento tem uma base
+    só; nos outros casos, tem duas.
+
+    Esta função não desenha nada. As contas internas usam coordenadas, assunto do
+    módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        raio: o raio R da esfera.
+        z_inferior: a altura do plano de baixo (de −R a R).
+        z_superior: a altura do plano de cima (maior que z_inferior, até R).
+        resolucao: quantidade de pontos usados para aproximar o arco.
+
+    Retorna:
+        A lista de vértices (r, z) da região, na ordem do contorno.
+
+    Levanta:
+        ValueError: se não valer −R ≤ z_inferior < z_superior ≤ R.
+
+    Exemplo:
+        >>> semiesfera = regiao_meridiana_do_segmento(1, 0, 1)
+        >>> fig = desenhar_solido_de_revolucao(fig, semiesfera, angulo=270)
+    """
+    _conferir_alturas_na_esfera(raio, z_inferior, z_superior)
+    arco = _arco_da_esfera(raio, z_inferior, z_superior, resolucao)
+    regiao = []
+    # O ponto do eixo só entra se ainda não estiver no arco (num polo, o arco já
+    # começa ou termina sobre o eixo, e não queremos pontos repetidos).
+    if arco[0][0] > TOLERANCIA:
+        regiao.append((0.0, float(z_inferior)))
+    regiao += arco
+    if arco[-1][0] > TOLERANCIA:
+        regiao.append((0.0, float(z_superior)))
+    return regiao
+
+
+def regiao_meridiana_do_setor(
+    raio: float, z_inferior: float, z_superior: float, resolucao: int = 200
+) -> list[tuple[float, float]]:
+    """Devolve a região do plano meridiano que, girando, gera o setor esférico.
+
+    A região é um setor circular: o centro da esfera, (0, 0), e o arco da
+    circunferência de raio R entre as alturas z_inferior e z_superior. Como o arco
+    fica todo do lado r >= 0, o ângulo do setor é de no máximo 180° e a região é
+    convexa.
+
+    Esta função não desenha nada. As contas internas usam coordenadas, assunto do
+    módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        raio: o raio R da esfera.
+        z_inferior: a altura onde o arco começa (de −R a R).
+        z_superior: a altura onde o arco termina (maior que z_inferior, até R).
+        resolucao: quantidade de pontos usados para aproximar o arco.
+
+    Retorna:
+        A lista de vértices (r, z) da região: o centro e, depois, o arco de baixo
+        para cima.
+
+    Levanta:
+        ValueError: se não valer −R ≤ z_inferior < z_superior ≤ R.
+
+    Exemplo:
+        >>> setor = regiao_meridiana_do_setor(5, 3, 5)
+        >>> fig = desenhar_solido_de_revolucao(fig, setor, angulo=300)
+    """
+    _conferir_alturas_na_esfera(raio, z_inferior, z_superior)
+    arco = _arco_da_esfera(raio, z_inferior, z_superior, resolucao)
+    # O centro (0, 0) liga as duas pontas do arco: os dois raios do setor.
+    return [(0.0, 0.0)] + arco
+
+
+def regiao_meridiana_do_anel(
+    raio: float, z_inferior: float, z_superior: float, resolucao: int = 200
+) -> list[tuple[float, float]]:
+    """Devolve a região do plano meridiano que, girando, gera o anel esférico.
+
+    A região é um segmento circular: o arco da circunferência de raio R entre as
+    alturas z_inferior e z_superior, fechado pela CORDA que liga as pontas do arco.
+
+    Esta função não desenha nada. As contas internas usam coordenadas, assunto do
+    módulo 07 (Geometria Analítica).
+
+    Parâmetros:
+        raio: o raio R da esfera.
+        z_inferior: a altura onde o arco começa (de −R a R).
+        z_superior: a altura onde o arco termina (maior que z_inferior, até R).
+        resolucao: quantidade de pontos usados para aproximar o arco.
+
+    Retorna:
+        A lista de vértices (r, z) da região: o arco de baixo para cima. O último
+        vértice se liga ao primeiro pela corda.
+
+    Levanta:
+        ValueError: se não valer −R ≤ z_inferior < z_superior ≤ R.
+
+    Exemplo:
+        >>> anel = regiao_meridiana_do_anel(5, -3, 3)   # esfera furada
+        >>> fig = desenhar_solido_de_revolucao(fig, anel, angulo=300)
+    """
+    _conferir_alturas_na_esfera(raio, z_inferior, z_superior)
+    # O polígono fecha sozinho: o último ponto do arco volta ao primeiro pela corda.
+    return _arco_da_esfera(raio, z_inferior, z_superior, resolucao)
 
 
 # --- Planificações ---
