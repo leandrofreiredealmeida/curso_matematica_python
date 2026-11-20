@@ -44,6 +44,10 @@ Histórico de versões
 v1 — notebook 01: núcleo de desenho 2D (plano cartesiano, ponto, pontos, segmento,
      polígono, projeções, triângulo das diferenças, rótulo, círculo de alcance);
      ferramentas distancia, ponto_medio, ponto_do_segmento, baricentro
+v2 — notebook 02: desenhar_seta, desenhar_sentido_de_percurso,
+     desenhar_reta_por_dois_pontos, criar_grafico; parâmetros rotulo_x, rotulo_y e
+     passo em criar_plano_cartesiano; ferramentas area_orientada, area_triangulo,
+     orientacao, estao_alinhados, area_poligono
 """
 
 # ==================================================================================
@@ -232,6 +236,39 @@ def _pontos_da_circunferencia(
     return cx + raio * np.cos(t), cy + raio * np.sin(t)
 
 
+def _recortar_reta_na_janela(
+    a: Ponto, b: Ponto, x_min: float, x_max: float, y_min: float, y_max: float
+) -> tuple[np.ndarray, np.ndarray] | None:
+    """Encontra o pedaço da reta AB que aparece dentro da janela retangular.
+
+    A reta é percorrida na forma P = A + t·(B − A): cada número real t dá um ponto
+    dela (é o `ponto_do_segmento` do notebook 01, agora com qualquer t). Para cada
+    eixo, descobrimos o intervalo de valores de t em que o ponto fica entre o mínimo
+    e o máximo daquele eixo. O pedaço visível corresponde aos t que servem nos DOIS
+    eixos ao mesmo tempo (a interseção dos dois intervalos).
+
+    Retorna as duas pontas do pedaço visível, ou None se a reta passa fora da janela.
+    """
+    pa, pb = _como_ponto_2d(a), _como_ponto_2d(b)
+    direcao = pb - pa
+    t_inicio, t_fim = -np.inf, np.inf
+    for eixo, (minimo, maximo) in enumerate([(x_min, x_max), (y_min, y_max)]):
+        if abs(direcao[eixo]) < TOLERANCIA:
+            # A reta não anda nesta direção (é vertical, para o eixo x, ou horizontal,
+            # para o eixo y): ou ela está inteira dentro da faixa, ou inteira fora.
+            if not minimo <= pa[eixo] <= maximo:
+                return None
+            continue
+        # Os valores de t em que a reta cruza as duas bordas deste eixo.
+        t1 = (minimo - pa[eixo]) / direcao[eixo]
+        t2 = (maximo - pa[eixo]) / direcao[eixo]
+        t_inicio = max(t_inicio, min(t1, t2))
+        t_fim = min(t_fim, max(t1, t2))
+    if t_inicio > t_fim:
+        return None
+    return pa + t_inicio * direcao, pa + t_fim * direcao
+
+
 # ==================================================================================
 # Figura e exibição
 # ==================================================================================
@@ -243,6 +280,9 @@ def criar_plano_cartesiano(
     y_max: float = 6,
     grade: bool = True,
     altura: int = 500,
+    rotulo_x: str = "x",
+    rotulo_y: str = "y",
+    passo: float | None = None,
 ) -> go.Figure:
     """Cria um plano cartesiano vazio, com eixos, grade e o visual padrão do módulo.
 
@@ -256,31 +296,47 @@ def criar_plano_cartesiano(
         y_min, y_max: o intervalo visível no eixo y.
         grade: se False, esconde as linhas da grade (os eixos continuam).
         altura: altura da figura, em pixels.
+        rotulo_x: nome escrito na ponta positiva do eixo x, por exemplo "x (m)".
+        rotulo_y: nome escrito na ponta positiva do eixo y.
+        passo: distância entre as marcações dos eixos (e as linhas da grade). Com
+            None, as marcações vão de 1 em 1 quando o intervalo tem até 20
+            unidades; acima disso, o Plotly escolhe sozinho.
 
     Retorna:
         Uma figura do Plotly (`go.Figure`), pronta para receber desenhos.
 
     Levanta:
         ValueError: se algum intervalo estiver invertido (mínimo maior ou igual ao
-            máximo).
+            máximo), ou se o passo não for positivo.
 
     Exemplo:
         >>> fig = criar_plano_cartesiano(titulo="Pontos no plano", x_min=-2, x_max=10)
+        >>> terreno = criar_plano_cartesiano(
+        ...     x_min=-40, x_max=200, y_min=-30, y_max=170, rotulo_x="x (m)",
+        ...     rotulo_y="y (m)", passo=20,
+        ... )
     """
     if x_min >= x_max or y_min >= y_max:
         raise ValueError(
             "Cada intervalo precisa ter o mínimo menor que o máximo, "
             "por exemplo x_min=-6 e x_max=6."
         )
+    if passo is not None and passo <= 0:
+        raise ValueError("O passo entre as marcações dos eixos precisa ser positivo.")
 
     cor_da_grade = _cor_transparente(CORES["grade"], _OPACIDADE_GRADE)
     cor_do_eixo = _cor_transparente(CORES["eixo"], _OPACIDADE_EIXO)
 
     def configurar_eixo(minimo: float, maximo: float) -> dict:
-        # Marcações de 1 em 1 quando cabem bem; senão, o Plotly escolhe sozinho.
+        # Com o passo pedido, usamos ele. Sem passo: marcações de 1 em 1 quando
+        # cabem bem; senão, o Plotly escolhe sozinho.
+        if passo is not None:
+            marcacao = passo
+        else:
+            marcacao = 1 if maximo - minimo <= 20 else None
         return dict(
             range=[minimo, maximo],
-            dtick=1 if maximo - minimo <= 20 else None,
+            dtick=marcacao,
             showgrid=grade,
             gridcolor=cor_da_grade,
             zeroline=True,               # a "linha do zero" é o próprio eixo
@@ -309,19 +365,74 @@ def criar_plano_cartesiano(
     # Escala igual: o eixo y fica "preso" ao eixo x, com razão 1.
     fig.update_yaxes(scaleanchor="x", scaleratio=1)
 
-    # Os nomes "x" e "y" nas pontas positivas dos eixos. Se o zero estiver fora do
-    # intervalo visível, o nome fica na borda mais próxima.
+    # Os nomes dos eixos ("x" e "y", por padrão) nas pontas positivas. Se o zero
+    # estiver fora do intervalo visível, o nome fica na borda mais próxima.
     y_do_eixo_x = min(max(0, y_min), y_max)
     x_do_eixo_y = min(max(0, x_min), x_max)
     fig.add_annotation(
-        x=x_max, y=y_do_eixo_x, text="<i>x</i>", showarrow=False,
+        x=x_max, y=y_do_eixo_x, text=f"<i>{rotulo_x}</i>", showarrow=False,
         xanchor="right", yanchor="bottom", font=dict(size=16, color=CORES["texto"]),
     )
     fig.add_annotation(
-        x=x_do_eixo_y, y=y_max, text="<i>y</i>", showarrow=False,
+        x=x_do_eixo_y, y=y_max, text=f"<i>{rotulo_y}</i>", showarrow=False,
         xanchor="left", yanchor="top", xshift=4,
         font=dict(size=16, color=CORES["texto"]),
     )
+    return fig
+
+
+def criar_grafico(
+    titulo: str | None = None,
+    rotulo_x: str | None = None,
+    rotulo_y: str | None = None,
+    altura: int = 400,
+    proporcao_igual: bool = False,
+) -> go.Figure:
+    """Cria um gráfico 2D vazio, para curvas que não são figuras geométricas.
+
+    É a mesma função do `utils_3d.py` (módulo 06), com o mesmo nome e os mesmos
+    parâmetros. Use-a, por exemplo, para o gráfico de uma conta em função de uma
+    coordenada. Ao contrário de `criar_plano_cartesiano`, aqui cada eixo se ajusta
+    sozinho ao espaço disponível (a escala NÃO é igual nos dois eixos, a menos que
+    você peça) e os intervalos não são fixos.
+
+    Parâmetros:
+        titulo: texto que aparece no alto do gráfico (opcional).
+        rotulo_x: nome do eixo horizontal (opcional).
+        rotulo_y: nome do eixo vertical (opcional).
+        altura: altura do gráfico, em pixels.
+        proporcao_igual: se True, uma unidade no eixo vertical tem o mesmo tamanho
+            que uma unidade no eixo horizontal.
+
+    Retorna:
+        Uma figura do Plotly (`go.Figure`), pronta para receber curvas e pontos.
+
+    Exemplo:
+        >>> fig = criar_grafico(rotulo_x="altura de C", rotulo_y="D")
+    """
+    # A grade usa a cor de apoio bem transparente: ela ajuda a ler os valores sem
+    # chamar mais atenção do que a curva.
+    grade = _cor_transparente(CORES["grade"], _OPACIDADE_GRADE)
+    eixo = _cor_transparente(CORES["eixo"], _OPACIDADE_EIXO)
+    fig = go.Figure()
+    fig.update_layout(
+        title=dict(text=titulo, x=0.5) if titulo else None,
+        height=altura,
+        paper_bgcolor=CORES["fundo"],
+        plot_bgcolor=CORES["fundo"],
+        font=dict(color=CORES["texto"], size=13),
+        margin=dict(l=60, r=20, b=50, t=50 if titulo else 20),
+        showlegend=True,
+        hovermode="closest",
+        hoverlabel=dict(bgcolor=NORD["nord1"], font=dict(color=CORES["texto"])),
+        xaxis=dict(title=rotulo_x, gridcolor=grade, zerolinecolor=eixo,
+                   color=NORD["nord4"]),
+        yaxis=dict(title=rotulo_y, gridcolor=grade, zerolinecolor=eixo,
+                   color=NORD["nord4"]),
+    )
+    if proporcao_igual:
+        # O eixo y fica "preso" ao eixo x, com a mesma escala (razão 1).
+        fig.update_layout(yaxis=dict(scaleanchor="x", scaleratio=1))
     return fig
 
 
@@ -548,6 +659,187 @@ def desenhar_poligono(
                 fig, ponto, rotulo=rotulo, cor=cor,
                 posicao_rotulo=_posicao_do_texto(direcao[0], direcao[1]),
             )
+    return fig
+
+
+def desenhar_sentido_de_percurso(
+    fig: go.Figure,
+    vertices: Sequence[Ponto],
+    cor: str | None = None,
+    fechado: bool = True,
+) -> go.Figure:
+    """Desenha uma setinha no meio de cada lado, mostrando a ordem dos vértices.
+
+    Cada seta vai de 40% a 60% do caminho entre um vértice e o seguinte (com o
+    `ponto_do_segmento` do notebook 01), apontando para o vértice seguinte na lista.
+
+    Atenção: esta função NÃO decide se o percurso é horário ou anti-horário. Ela só
+    mostra a ordem em que os vértices foram dados. Descobrir o sentido é com você.
+
+    Parâmetros:
+        fig: a figura.
+        vertices: os vértices, cada um como (x, y), na ordem do percurso.
+        cor: cor das setas. Se não for informada, usa CORES["texto"].
+        fechado: se True, desenha também a seta do último vértice de volta ao
+            primeiro (o percurso de um polígono). Se False, o percurso termina no
+            último vértice.
+
+    Retorna:
+        A mesma figura, com as setas desenhadas.
+
+    Levanta:
+        ValueError: se houver menos de 2 vértices.
+
+    Exemplo:
+        >>> fig = desenhar_sentido_de_percurso(fig, [(0, 0), (4, 0), (1, 3)])
+    """
+    if len(vertices) < 2:
+        raise ValueError("Um percurso precisa de pelo menos 2 vértices.")
+    cor = cor or CORES["texto"]
+    pontos = [_como_ponto_2d(v) for v in vertices]
+    quantidade_de_lados = len(pontos) if fechado else len(pontos) - 1
+    for i in range(quantidade_de_lados):
+        # O "% len(pontos)" faz o vértice depois do último ser o primeiro.
+        atual, seguinte = pontos[i], pontos[(i + 1) % len(pontos)]
+        fig = desenhar_seta(
+            fig,
+            ponto_do_segmento(atual, seguinte, 0.4),
+            ponto_do_segmento(atual, seguinte, 0.6),
+            cor=cor, espessura=2.5,
+        )
+    return fig
+
+
+def desenhar_seta(
+    fig: go.Figure,
+    inicio: Ponto,
+    fim: Ponto,
+    rotulo: str | None = None,
+    cor: str | None = None,
+    espessura: float = 2,
+) -> go.Figure:
+    """Desenha uma seta que sai de `inicio` e tem a ponta em `fim`.
+
+    No notebook 03 ela será usada para representar vetores.
+
+    Parâmetros:
+        fig: a figura.
+        inicio: o ponto de onde a seta sai, como (x, y).
+        fim: o ponto onde fica a ponta da seta.
+        rotulo: texto escrito perto do meio da seta, um pouco afastado dela
+            (opcional).
+        cor: cor da seta. Se não for informada, usa CORES["reta"].
+        espessura: espessura da linha.
+
+    Retorna:
+        A mesma figura, com a seta desenhada. Se `inicio` e `fim` forem o mesmo
+        ponto, não há seta para desenhar e a figura volta sem mudanças.
+
+    Exemplo:
+        >>> fig = desenhar_seta(fig, (1, 1), (4, 3), rotulo="AB")
+    """
+    a = _como_ponto_2d(inicio)
+    b = _como_ponto_2d(fim)
+    if np.all(np.abs(b - a) < TOLERANCIA):
+        return fig
+    cor = cor or CORES["reta"]
+    # No Plotly, uma seta é uma "anotação": (ax, ay) é a cauda e (x, y) é a ponta.
+    # O "axref"/"ayref" igual a "x"/"y" diz que a cauda também é dada em coordenadas
+    # do gráfico (e não em pixels).
+    fig.add_annotation(
+        x=b[0], y=b[1], ax=a[0], ay=a[1],
+        xref="x", yref="y", axref="x", ayref="y",
+        text="", showarrow=True,
+        arrowhead=2, arrowsize=1.2, arrowwidth=espessura, arrowcolor=cor,
+    )
+    if rotulo:
+        # Como em desenhar_segmento: o texto vai para o meio, empurrado para o lado.
+        meio = (a + b) / 2
+        direcao = b - a
+        lado = np.array([-direcao[1], direcao[0]])
+        if lado[1] < 0 or (lado[1] == 0 and lado[0] < 0):
+            lado = -lado
+        fig = _escrever(
+            fig, meio, rotulo, cor, 14,
+            posicao_do_texto=_posicao_do_texto(lado[0], lado[1]),
+        )
+    return fig
+
+
+def desenhar_reta_por_dois_pontos(
+    fig: go.Figure,
+    a: Ponto,
+    b: Ponto,
+    rotulo: str | None = None,
+    cor: str | None = None,
+    espessura: float = 2,
+    tracejado: bool = True,
+) -> go.Figure:
+    """Desenha a reta que passa por A e B, atravessando toda a janela da figura.
+
+    As equações da reta serão estudadas no notebook 04. Aqui a reta é só desenhada.
+
+    A janela é lida dos intervalos da figura (os x_min, x_max, y_min e y_max usados
+    em `criar_plano_cartesiano`). Se a reta passar fora da janela, nada é desenhado.
+
+    Parâmetros:
+        fig: a figura (criada com `criar_plano_cartesiano`).
+        a: um ponto da reta, como (x, y).
+        b: outro ponto da reta, diferente de A.
+        rotulo: nome da reta, escrito perto de uma das pontas visíveis (opcional).
+        cor: cor da reta. Se não for informada, usa CORES["apoio"].
+        espessura: espessura da linha.
+        tracejado: se True (o padrão), desenha a linha tracejada.
+
+    Retorna:
+        A mesma figura, com a reta desenhada.
+
+    Levanta:
+        ValueError: se A e B forem o mesmo ponto, ou se a figura não tiver os
+            intervalos dos eixos definidos.
+
+    Exemplo:
+        >>> fig = desenhar_reta_por_dois_pontos(fig, (-3, -2), (4, 1), rotulo="r")
+    """
+    pa, pb = _como_ponto_2d(a), _como_ponto_2d(b)
+    if np.all(np.abs(pb - pa) < TOLERANCIA):
+        raise ValueError(
+            "Os dois pontos são iguais: é preciso dois pontos distintos para "
+            "determinar uma reta."
+        )
+    if fig.layout.xaxis.range is None or fig.layout.yaxis.range is None:
+        raise ValueError(
+            "A figura precisa ter os intervalos dos eixos definidos: crie-a com "
+            "criar_plano_cartesiano."
+        )
+    x_min, x_max = fig.layout.xaxis.range
+    y_min, y_max = fig.layout.yaxis.range
+    pedaco = _recortar_reta_na_janela(pa, pb, x_min, x_max, y_min, y_max)
+    if pedaco is None:
+        return fig
+    inicio, fim = pedaco
+    cor = cor or CORES["apoio"]
+    fig.add_trace(
+        go.Scatter(
+            x=[inicio[0], fim[0]], y=[inicio[1], fim[1]],
+            mode="lines",
+            line=dict(color=cor, width=espessura, dash="dash" if tracejado else "solid"),
+            hoverinfo="skip",
+            showlegend=False,
+        )
+    )
+    if rotulo:
+        # O nome fica perto de uma das pontas (a 8% do comprimento visível), do lado
+        # de cima da reta (ou à direita, se ela for vertical).
+        posicao = inicio + 0.92 * (fim - inicio)
+        direcao = fim - inicio
+        lado = np.array([-direcao[1], direcao[0]])
+        if lado[1] < 0 or (lado[1] == 0 and lado[0] < 0):
+            lado = -lado
+        fig = _escrever(
+            fig, posicao, rotulo, cor, 14,
+            posicao_do_texto=_posicao_do_texto(lado[0], lado[1]),
+        )
     return fig
 
 
@@ -854,3 +1146,148 @@ def baricentro(a: Ponto, b: Ponto, c: Ponto) -> tuple[float, ...]:
     _conferir_mesma_dimensao(pa, pb)
     _conferir_mesma_dimensao(pa, pc)
     return tuple(float((ca + cb + cc) / 3) for ca, cb, cc in zip(pa, pb, pc))
+
+
+def area_orientada(a: Ponto, b: Ponto, c: Ponto) -> float:
+    """Calcula a área orientada (área com sinal) do triângulo ABC.
+
+    Deduzida no notebook 02 (Alinhamento e áreas por determinantes).
+
+    É D/2, em que D é o determinante dos três pontos:
+    D = x_A(y_B − y_C) + x_B(y_C − y_A) + x_C(y_A − y_B).
+    O resultado é positivo quando o percurso A → B → C é anti-horário, negativo
+    quando é horário e zero quando os três pontos estão alinhados.
+
+    Parâmetros:
+        a: o ponto A, como (x, y).
+        b: o ponto B, como (x, y).
+        c: o ponto C, como (x, y).
+
+    Retorna:
+        A área orientada, um número que pode ser positivo, negativo ou zero.
+
+    Exemplo:
+        >>> area_orientada((0, 0), (4, 0), (1, 3))
+        6.0
+        >>> area_orientada((0, 0), (1, 3), (4, 0))
+        -6.0
+    """
+    xa, ya = _como_ponto_2d(a)
+    xb, yb = _como_ponto_2d(b)
+    xc, yc = _como_ponto_2d(c)
+    determinante = xa * (yb - yc) + xb * (yc - ya) + xc * (ya - yb)
+    return float(determinante / 2)
+
+
+def area_triangulo(a: Ponto, b: Ponto, c: Ponto) -> float:
+    """Calcula a área do triângulo ABC a partir das coordenadas dos vértices.
+
+    Deduzida no notebook 02 (Alinhamento e áreas por determinantes).
+
+    É o valor absoluto da área orientada: S = |D| / 2.
+
+    Parâmetros:
+        a: o vértice A, como (x, y).
+        b: o vértice B, como (x, y).
+        c: o vértice C, como (x, y).
+
+    Retorna:
+        A área, um número maior ou igual a zero (zero se os pontos estão alinhados).
+
+    Exemplo:
+        >>> area_triangulo((1, 2), (5, 3), (2, 7))
+        9.5
+    """
+    return abs(area_orientada(a, b, c))
+
+
+def orientacao(
+    a: Ponto, b: Ponto, c: Ponto, tolerancia: float = TOLERANCIA
+) -> str:
+    """Diz em que sentido é o percurso A → B → C.
+
+    Deduzida no notebook 02 (Alinhamento e áreas por determinantes).
+
+    Usa o sinal do determinante dos três pontos, D: positivo é anti-horário,
+    negativo é horário e zero (a menos da tolerância) quer dizer pontos alinhados.
+    Os textos devolvidos não têm acento, porque são valores usados no código.
+
+    Parâmetros:
+        a: o ponto A, como (x, y).
+        b: o ponto B, como (x, y).
+        c: o ponto C, como (x, y).
+        tolerancia: se |D| for menor ou igual a este número, D conta como zero.
+
+    Retorna:
+        Exatamente um destes textos: "anti-horario", "horario" ou "alinhados".
+
+    Exemplo:
+        >>> orientacao((0, 0), (4, 0), (1, 3))
+        'anti-horario'
+    """
+    determinante = 2 * area_orientada(a, b, c)
+    if abs(determinante) <= tolerancia:
+        return "alinhados"
+    return "anti-horario" if determinante > 0 else "horario"
+
+
+def estao_alinhados(
+    a: Ponto, b: Ponto, c: Ponto, tolerancia: float = TOLERANCIA
+) -> bool:
+    """Diz se os pontos A, B e C estão sobre uma mesma reta.
+
+    Deduzida no notebook 02 (Alinhamento e áreas por determinantes).
+
+    Condição de alinhamento: o determinante dos três pontos vale zero.
+
+    Parâmetros:
+        a: o ponto A, como (x, y).
+        b: o ponto B, como (x, y).
+        c: o ponto C, como (x, y).
+        tolerancia: se |D| for menor ou igual a este número, D conta como zero.
+
+    Retorna:
+        True se os pontos estão alinhados; False se formam um triângulo.
+
+    Exemplo:
+        >>> estao_alinhados((0, 5), (2, 5), (7, 5))
+        True
+    """
+    return orientacao(a, b, c, tolerancia) == "alinhados"
+
+
+def area_poligono(vertices: Sequence[Ponto]) -> float:
+    """Calcula a área de um polígono pela fórmula do cadarço.
+
+    Deduzida no notebook 02 (Alinhamento e áreas por determinantes).
+
+    S = ½·|Σ (x_i·y_(i+1) − x_(i+1)·y_i)|, com o vértice depois do último voltando
+    a ser o primeiro. Cada parcela é o dobro da área orientada do triângulo formado
+    pela origem e por um lado do polígono.
+
+    Os vértices devem estar em ordem (seguindo o contorno), sem que os lados se
+    cruzem. O sentido (horário ou anti-horário) não importa.
+
+    Parâmetros:
+        vertices: os vértices, cada um como (x, y), na ordem do contorno.
+
+    Retorna:
+        A área do polígono.
+
+    Levanta:
+        ValueError: se houver menos de 3 vértices.
+
+    Exemplo:
+        >>> area_poligono([(0, 0), (6, 0), (5, 4), (1, 5)])
+        22.5
+    """
+    if len(vertices) < 3:
+        raise ValueError("Um polígono precisa de pelo menos 3 vértices.")
+    pontos = [_como_ponto_2d(v) for v in vertices]
+    n = len(pontos)
+    soma = 0.0
+    for i in range(n):
+        xi, yi = pontos[i]
+        xj, yj = pontos[(i + 1) % n]   # o "% n" faz o último vértice voltar ao primeiro
+        soma += xi * yj - xj * yi
+    return float(abs(soma) / 2)
